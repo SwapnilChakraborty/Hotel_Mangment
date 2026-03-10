@@ -51,15 +51,23 @@ export function AdminOverview() {
 
             socket.on('admin_activity', (newActivity) => {
                 setActivities(prev => {
+                    const typeLabel = newActivity.type === 'order' ? `Order #${newActivity.id.toString().substr(-5)}` : `${newActivity.details || 'Service Request'}`;
                     const formatted = {
                         id: newActivity.id,
-                        text: newActivity.text || `Room ${newActivity.room}: ${newActivity.type === 'order' ? 'New Order' : (newActivity.details || 'Service Request')}`,
+                        text: newActivity.text || `Room ${newActivity.room}: ${typeLabel}`,
                         time: newActivity.time || new Date(),
                         type: newActivity.type,
-                        status: newActivity.status
+                        status: newActivity.status || 'Pending'
                     };
                     return [formatted, ...prev].slice(0, 10);
                 });
+            });
+
+            socket.on('admin_activity_update', (data) => {
+                const { requestId, status } = data;
+                setActivities(prev => prev.map(act =>
+                    act.id === requestId ? { ...act, status } : act
+                ));
             });
         }
 
@@ -67,6 +75,7 @@ export function AdminOverview() {
             if (socket) {
                 socket.off('stats_update');
                 socket.off('admin_activity');
+                socket.off('admin_activity_update');
             }
         };
     }, [socket]);
@@ -195,6 +204,7 @@ export function AdminOverview() {
                                 text={item.text}
                                 time={new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toUpperCase()}
                                 type={item.type}
+                                status={item.status}
                             />
                         )) : (
                             <div className="text-center py-10">
@@ -228,7 +238,7 @@ function RankingItem({ label, percentage }) {
     );
 }
 
-function ActivityItem({ text, time, type }) {
+function ActivityItem({ text, time, type, status }) {
     const colors = {
         service: 'bg-accent shadow-accent/20',
         order: 'bg-orange-400 shadow-orange-400/20',
@@ -241,7 +251,17 @@ function ActivityItem({ text, time, type }) {
         <div className="flex gap-4 group cursor-default">
             <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 shadow-lg ${colors[type] || 'bg-slate-400'}`}></div>
             <div>
-                <p className="text-sm font-bold text-primary group-hover:text-accent transition-colors leading-snug">{text}</p>
+                <p className="text-sm font-bold text-primary group-hover:text-accent transition-colors leading-snug flex items-center flex-wrap gap-2">
+                    {text}
+                    {status && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest ${status.toLowerCase() === 'completed' || status.toLowerCase() === 'delivered' ? 'bg-green-100 text-green-600' :
+                                status.toLowerCase() === 'pending' || status.toLowerCase() === 'new' ? 'bg-orange-100 text-orange-500' :
+                                    'bg-blue-100 text-blue-500'
+                            }`}>
+                            {status}
+                        </span>
+                    )}
+                </p>
                 <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-1.5">{time}</p>
             </div>
         </div>

@@ -1,12 +1,52 @@
-import React from 'react';
-import { Key, Wifi, Utensils, MessageSquare, Briefcase, Car, Sparkles, MoreHorizontal, Sun, Calendar, Clock, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Key, Wifi, Utensils, MessageSquare, Briefcase, Car, Sparkles, MoreHorizontal, Sun, Calendar, Clock, MapPin, Activity, CheckCircle2, Clock as ClockIcon, TrendingUp } from 'lucide-react';
 import { Card } from '../components/ui/Card';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useSocket } from '../context/SocketContext';
 
 export function GuestHome() {
     const customer = JSON.parse(localStorage.getItem('customer') || '{}');
     const guestName = customer.name || 'Anderson';
     const roomNumber = (customer.room?.roomNumber || customer.room || '402').toString();
+    const { socket } = useSocket();
+    const [activities, setActivities] = useState([]);
+
+    useEffect(() => {
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/guest-activity/${roomNumber}`)
+            .then(res => res.json())
+            .then(data => setActivities(data))
+            .catch(err => console.error('Error fetching activities:', err));
+
+        if (socket) {
+            socket.emit('join_room', roomNumber);
+
+            socket.on('status_updated', (data) => {
+                setActivities(prev => prev.map(act =>
+                    act.id === data.requestId ? { ...act, status: data.status } : act
+                ));
+            });
+
+            socket.on('admin_activity', (data) => {
+                // If it's related to this room
+                if (data.room === roomNumber) {
+                    setActivities(prev => [{
+                        id: data.id,
+                        text: data.type === 'order' ? `Order #${data.id.toString().substr(-5)}` : `${data.details}`,
+                        time: data.time || new Date(),
+                        type: data.type,
+                        status: data.status || 'pending'
+                    }, ...prev].slice(0, 10)); // Keep last 10
+                }
+            });
+        }
+
+        return () => {
+            if (socket) {
+                socket.off('status_updated');
+                socket.off('admin_activity');
+            }
+        };
+    }, [roomNumber, socket]);
 
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -116,6 +156,56 @@ export function GuestHome() {
                     />
                 </div>
             </motion.div>
+            {/* Live Feed Section */}
+            <motion.div
+                variants={itemVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                className="space-y-6"
+            >
+                <div className="flex justify-between items-center px-6">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.35em] flex items-center gap-2">
+                        <Activity size={12} className="text-primary" />
+                        Live Updates
+                    </h3>
+                    <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+                    </span>
+                </div>
+
+                <div className="px-6">
+                    <Card soft className="p-1 border-none shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-xl overflow-hidden">
+                        <div className="flex flex-col max-h-64 overflow-y-auto custom-scrollbar p-1">
+                            <AnimatePresence>
+                                {activities.length === 0 ? (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className="py-8 text-center"
+                                    >
+                                        <div className="w-10 h-10 mx-auto bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                                            <TrendingUp size={16} className="text-slate-300" />
+                                        </div>
+                                        <p className="text-xs font-bold text-slate-400">No recent activity</p>
+                                        <p className="text-[10px] text-slate-400 opacity-60 mt-1">Orders and requests will appear here</p>
+                                    </motion.div>
+                                ) : (
+                                    activities.map((activity, idx) => (
+                                        <ActivityItem
+                                            key={activity.id || idx}
+                                            activity={activity}
+                                            isLast={idx === activities.length - 1}
+                                        />
+                                    ))
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </Card>
+                </div>
+            </motion.div>
+
         </div>
     );
 }
@@ -181,3 +271,44 @@ function ArrowRightIcon({ className }) {
     );
 }
 
+function ActivityItem({ activity, isLast }) {
+    const isCompleted = activity.status.toLowerCase() === 'completed' || activity.status.toLowerCase() === 'delivered';
+    const isPending = activity.status.toLowerCase() === 'pending' || activity.status.toLowerCase() === 'new';
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className={`flex gap-4 p-4 rounded-2xl transition-colors hover:bg-slate-50 ${!isLast ? 'border-b border-slate-50' : ''}`}
+        >
+            <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center
+                ${isCompleted ? 'bg-green-50 text-green-500' :
+                    isPending ? 'bg-orange-50 text-orange-400' : 'bg-blue-50 text-blue-500'}`}
+            >
+                {isCompleted ? <CheckCircle2 size={14} /> :
+                    isPending ? <ClockIcon size={14} /> : <TrendingUp size={14} />}
+            </div>
+
+            <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start mb-1">
+                    <p className="text-sm font-bold text-slate-700 truncate">{activity.text}</p>
+                    <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap ml-2 mt-1">
+                        {new Date(activity.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5">
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-flex items-center gap-1
+                         ${isCompleted ? 'bg-green-100/50 text-green-600' :
+                            isPending ? 'bg-orange-100/50 text-orange-500' : 'bg-blue-100/50 text-blue-600'}`}
+                    >
+                        {activity.status}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 capitalize">
+                        • {activity.type}
+                    </span>
+                </div>
+            </div>
+        </motion.div>
+    );
+}

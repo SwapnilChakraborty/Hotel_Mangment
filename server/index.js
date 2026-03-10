@@ -536,6 +536,42 @@ app.get('/api/activity', async (req, res) => {
     }
 });
 
+// Guest Activity Route
+app.get('/api/guest-activity/:roomNumber', async (req, res) => {
+    const { roomNumber } = req.params;
+    try {
+        let serviceRequests, orders;
+        if (isMockMode) {
+            serviceRequests = mockServiceRequests.filter(r => r.roomNumber === roomNumber);
+            orders = mockOrders.filter(o => o.roomNumber === roomNumber);
+        } else {
+            serviceRequests = await ServiceRequest.find({ roomNumber }).lean();
+            orders = await Order.find({ roomNumber }).lean();
+        }
+
+        const activities = [
+            ...serviceRequests.map(r => ({
+                id: r._id.toString(),
+                text: `${r.type.charAt(0).toUpperCase() + r.type.slice(1)} Request`,
+                time: r.createdAt,
+                type: 'service',
+                status: r.status
+            })),
+            ...orders.map(o => ({
+                id: o._id.toString(),
+                text: `Order #${o._id.toString().substr(-5)}`,
+                time: o.createdAt,
+                type: 'order',
+                status: o.status
+            }))
+        ].sort((a, b) => new Date(b.time) - new Date(a.time));
+
+        res.json(activities);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Maintenance Tasks Route
 app.get('/api/maintenance', async (req, res) => {
     try {
