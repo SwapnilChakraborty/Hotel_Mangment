@@ -233,7 +233,7 @@ app.post('/api/service-requests', async (req, res) => {
         }
 
         io.emit('admin_activity', {
-            id: request._id,
+            id: request._id.toString(),
             room: request.roomNumber,
             type: 'service',
             details: request.details,
@@ -340,6 +340,14 @@ app.post('/api/checkout', async (req, res) => {
 
         io.emit('room_status_changed', { roomNumber, status: 'Cleaning' });
         io.emit('guest_checkout', { roomNumber });
+        io.emit('admin_activity', {
+            id: `clean_${roomNumber}`,
+            room: roomNumber,
+            type: 'service',
+            details: 'Housekeeping Required',
+            time: new Date(),
+            status: 'Pending'
+        });
         broadcastStats();
 
         res.json({ message: 'Checked out successfully.', room });
@@ -387,6 +395,16 @@ app.post('/api/update-room-status', async (req, res) => {
         }
 
         io.emit('room_status_changed', { roomNumber, status });
+        if (status === 'Cleaning') {
+            io.emit('admin_activity', {
+                id: `clean_${roomNumber}`,
+                room: roomNumber,
+                type: 'service',
+                details: 'Housekeeping Required',
+                time: new Date(),
+                status: 'Pending'
+            });
+        }
         broadcastStats();
 
         res.json({ message: `Room status updated to ${status}`, room });
@@ -477,13 +495,15 @@ app.post('/api/staff-login', async (req, res) => {
 // Activity Feed Route
 app.get('/api/activity', async (req, res) => {
     try {
-        let serviceRequests, orders;
+        let serviceRequests, orders, cleaningRooms = [];
         if (isMockMode) {
             serviceRequests = [...mockServiceRequests].reverse().slice(0, 10);
             orders = [...mockOrders].reverse().slice(0, 10);
+            cleaningRooms = mockRooms.filter(r => r.status === 'Cleaning');
         } else {
             serviceRequests = await ServiceRequest.find().sort({ createdAt: -1 }).limit(10).lean();
             orders = await Order.find().sort({ createdAt: -1 }).limit(10).lean();
+            cleaningRooms = await Room.find({ status: 'Cleaning' }).lean();
         }
 
         const activities = [
@@ -501,7 +521,7 @@ app.get('/api/activity', async (req, res) => {
                 type: 'order',
                 status: o.status
             })),
-            ...mockRooms.filter(r => r.status === 'Cleaning').map(r => ({
+            ...cleaningRooms.map(r => ({
                 id: `clean_${r.roomNumber}`,
                 text: `Room ${r.roomNumber}: Housekeeping Required`,
                 time: new Date(), // Mocking current requirement

@@ -26,9 +26,10 @@ export function AdminOverview() {
     useEffect(() => {
         const fetchData = async () => {
             try {
+                const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-mangment.onrender.com';
                 const [statsRes, activityRes] = await Promise.all([
-                    fetch('http://localhost:5001/api/stats'),
-                    fetch('http://localhost:5001/api/activity')
+                    fetch(`${API_URL}/api/stats`),
+                    fetch(`${API_URL}/api/activity`)
                 ]);
                 const statsData = await statsRes.json();
                 const activityData = await activityRes.json();
@@ -52,7 +53,7 @@ export function AdminOverview() {
                 setActivities(prev => {
                     const formatted = {
                         id: newActivity.id,
-                        text: `Room ${newActivity.room}: ${newActivity.type === 'order' ? 'New Order' : 'Service Request'}`,
+                        text: newActivity.text || `Room ${newActivity.room}: ${newActivity.type === 'order' ? 'New Order' : (newActivity.details || 'Service Request')}`,
                         time: newActivity.time || new Date(),
                         type: newActivity.type,
                         status: newActivity.status
