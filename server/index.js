@@ -514,13 +514,18 @@ app.get('/api/activity', async (req, res) => {
                 type: 'service',
                 status: r.status
             })),
-            ...orders.map(o => ({
-                id: o._id.toString(),
-                text: `Room ${o.roomNumber}: Order #${o._id.toString().substr(-5)}`,
-                time: o.createdAt,
-                type: 'order',
-                status: o.status
-            })),
+            ...orders.map(o => {
+                const orderText = o.items && o.items.length > 0
+                    ? o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')
+                    : `Order #${o._id.toString().substring(19)}`;
+                return {
+                    id: o._id.toString(),
+                    text: `Room ${o.roomNumber}: ${orderText}`,
+                    time: o.createdAt,
+                    type: 'order',
+                    status: o.status
+                };
+            }),
             ...cleaningRooms.map(r => ({
                 id: `clean_${r.roomNumber}`,
                 text: `Room ${r.roomNumber}: Housekeeping Required`,

@@ -51,7 +51,10 @@ export function AdminOverview() {
 
             socket.on('admin_activity', (newActivity) => {
                 setActivities(prev => {
-                    const typeLabel = newActivity.type === 'order' ? `Order #${newActivity.id.toString().substr(-5)}` : `${newActivity.details || 'Service Request'}`;
+                    const typeLabel = newActivity.type === 'order'
+                        ? (newActivity.details ? newActivity.details : `Order #${newActivity.id.toString().substr(-5)}`)
+                        : `${newActivity.details || 'Service Request'}`;
+
                     const formatted = {
                         id: newActivity.id,
                         text: newActivity.text || `Room ${newActivity.room}: ${typeLabel}`,
@@ -255,8 +258,8 @@ function ActivityItem({ text, time, type, status }) {
                     {text}
                     {status && (
                         <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest ${status.toLowerCase() === 'completed' || status.toLowerCase() === 'delivered' ? 'bg-green-100 text-green-600' :
-                                status.toLowerCase() === 'pending' || status.toLowerCase() === 'new' ? 'bg-orange-100 text-orange-500' :
-                                    'bg-blue-100 text-blue-500'
+                            status.toLowerCase() === 'pending' || status.toLowerCase() === 'new' ? 'bg-orange-100 text-orange-500' :
+                                'bg-blue-100 text-blue-500'
                             }`}>
                             {status}
                         </span>
