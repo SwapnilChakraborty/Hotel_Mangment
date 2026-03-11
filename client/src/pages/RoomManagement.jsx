@@ -13,6 +13,8 @@ export function RoomManagement() {
     const [filter, setFilter] = useState('All');
     const [allotModal, setAllotModal] = useState(null); // room data if modal open
     const [guestName, setGuestName] = useState('');
+    const [checkIn, setCheckIn] = useState('');
+    const [checkOut, setCheckOut] = useState('');
     const [allotting, setAllotting] = useState(false);
     const [allotSuccess, setAllotSuccess] = useState(null); // { guestID }
     const [maintenanceModal, setMaintenanceModal] = useState(null); // room data
@@ -57,7 +59,7 @@ export function RoomManagement() {
             const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hotel-mangment.onrender.com'}/api/allot-room`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ roomNumber: allotModal.roomNumber, guestName })
+                body: JSON.stringify({ roomNumber: allotModal.roomNumber, guestName, checkIn, checkOut })
             });
 
             if (!response.ok) throw new Error('Failed to allot room');
@@ -65,6 +67,8 @@ export function RoomManagement() {
             const result = await response.json();
             setAllotSuccess({ guestID: result.customerID });
             setGuestName('');
+            setCheckIn('');
+            setCheckOut('');
             fetchRooms();
         } catch (err) {
             console.error(err);
@@ -347,6 +351,33 @@ export function RoomManagement() {
                                                 </div>
                                             </div>
 
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Check In</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="date"
+                                                            value={checkIn}
+                                                            onChange={(e) => setCheckIn(e.target.value)}
+                                                            className="w-full bg-slate-50 border-none rounded-3xl py-5 px-6 font-bold text-primary placeholder:text-slate-300 focus:ring-4 focus:ring-primary/10 transition-all"
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Check Out</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="date"
+                                                            value={checkOut}
+                                                            onChange={(e) => setCheckOut(e.target.value)}
+                                                            className="w-full bg-slate-50 border-none rounded-3xl py-5 px-6 font-bold text-primary placeholder:text-slate-300 focus:ring-4 focus:ring-primary/10 transition-all"
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <button
                                                 type="submit"
                                                 disabled={allotting}
@@ -384,6 +415,8 @@ export function RoomManagement() {
                                                 onClick={() => {
                                                     setAllotModal(null);
                                                     setAllotSuccess(null);
+                                                    setCheckIn('');
+                                                    setCheckOut('');
                                                 }}
                                             >
                                                 Done

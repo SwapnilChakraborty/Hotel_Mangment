@@ -275,7 +275,7 @@ app.get('/api/rooms', async (req, res) => {
 
 // Allot Room Route
 app.post('/api/allot-room', async (req, res) => {
-    const { roomNumber, guestName } = req.body;
+    const { roomNumber, guestName, checkIn, checkOut } = req.body;
     try {
         let room, customerID, customer;
 
@@ -285,7 +285,7 @@ app.post('/api/allot-room', async (req, res) => {
             if (room.status !== 'Ready') return res.status(400).json({ error: 'Room is not ready' });
 
             customerID = 'CUST' + Math.floor(1000 + Math.random() * 9000);
-            customer = { _id: 'mock_cust_' + Date.now(), customerID, name: guestName, room: { ...room } };
+            customer = { _id: 'mock_cust_' + Date.now(), customerID, name: guestName, room: { ...room }, checkIn, checkOut };
             mockCustomers.push({ ...customer, room: room._id }); // Store ID in array to prevent circularity if saved
 
             room.status = 'Occupied';
@@ -296,7 +296,7 @@ app.post('/api/allot-room', async (req, res) => {
             if (room.status !== 'Ready') return res.status(400).json({ error: 'Room is not ready' });
 
             customerID = 'CUST' + Math.floor(1000 + Math.random() * 9000);
-            customer = new Customer({ customerID, name: guestName, room: room._id });
+            customer = new Customer({ customerID, name: guestName, room: room._id, checkIn, checkOut });
             await customer.save();
 
             room.status = 'Occupied';
