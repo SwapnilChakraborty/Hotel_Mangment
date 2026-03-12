@@ -63,14 +63,15 @@ export function StaffTasks() {
         socket.on('admin_activity', (data) => {
             playSound(data.type);
             setTasks(prev => {
-                const exists = prev.find(t => t.id === data.id);
+                const standardizedId = data.id || `housekeeping_${data.room}`;
+                const exists = prev.find(t => t.id === standardizedId);
                 if (exists) return prev;
                 return [{
-                    id: data.id || Math.random(),
+                    id: standardizedId,
                     room: data.room,
                     type: data.type === 'order' ? 'Dining' : data.type === 'housekeeping' ? 'Housekeeping' : 'Service',
                     detail: data.details,
-                    priority: data.priority || 'Medium',
+                    priority: data.priority || 'Normal',
                     status: data.status || 'Pending',
                     timestamp: new Date(data.time || Date.now())
                 }, ...prev];

@@ -535,13 +535,13 @@ app.get('/api/activity', async (req, res) => {
                 };
             }),
             ...cleaningRooms.map(r => ({
-                id: `clean_${r.roomNumber}`,
+                id: `housekeeping_${r.roomNumber}`,
                 room: r.roomNumber,
-                details: 'Housekeeping Required',
-                time: new Date(), 
+                details: 'Regular Cleaning Required',
+                time: r.lastCleanedAt || new Date(new Date().setHours(8, 0, 0, 0)), 
                 type: 'housekeeping',
                 status: 'Pending',
-                priority: 'High'
+                priority: 'Normal'
             }))
         ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 15);
 
@@ -688,13 +688,6 @@ io.on('connection', (socket) => {
         console.log(`Socket ${socket.id} joined room_${roomNumber}`);
     });
 
-    socket.on('new_request', (data) => {
-        io.emit('admin_activity', {
-            ...data,
-            id: Math.random().toString(36).substr(2, 9),
-            createdAt: new Date()
-        });
-    });
 
     socket.on('update_status', async (data) => {
         const { requestId, status, roomNumber } = data;
