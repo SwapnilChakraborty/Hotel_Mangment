@@ -3,62 +3,20 @@ import { Clock, CheckCircle2, ClipboardList } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Short notification beep encoded as a base64 WAV (44-byte PCM, 440 Hz, 0.15s)
-// Generated from a minimal WAV so no external file is needed.
-const BEEP_WAV_B64 =
-    'data:audio/wav;base64,' +
-    'UklGRlYDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YTIDAAD' +
-    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/z3////' +
-    '///v7+fn7/vv9/f3////z8/P/////z8/P/////z8/P' +
-    '////8zMzMz//////MzMzMz//////MzMzMz/////8';
+const NOTIFICATION_SOUNDS = {
+    order: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3', // Ding
+    service: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3', // Alert
+    housekeeping: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3' // Clean
+};
 
-// More reliable: generate beep using Web Audio API, resume on any click
 function useNotificationSound() {
-    const ctxRef = useRef(null);
+    const audioRef = useRef(null);
 
-    useEffect(() => {
-        const unlock = () => {
-            if (!ctxRef.current) {
-                const AC = window.AudioContext || window.webkitAudioContext;
-                if (AC) ctxRef.current = new AC();
-            }
-            if (ctxRef.current?.state === 'suspended') ctxRef.current.resume();
-        };
-        window.addEventListener('click', unlock);
-        window.addEventListener('keydown', unlock);
-        return () => {
-            window.removeEventListener('click', unlock);
-            window.removeEventListener('keydown', unlock);
-        };
-    }, []);
-
-    const play = () => {
+    const play = (type = 'order') => {
         try {
-            const AC = window.AudioContext || window.webkitAudioContext;
-            if (!AC) return;
-            if (!ctxRef.current) ctxRef.current = new AC();
-            const ctx = ctxRef.current;
-
-            const tone = (freq, start, dur) => {
-                const osc = ctx.createOscillator();
-                const g = ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.value = freq;
-                g.gain.setValueAtTime(0.4, start);
-                g.gain.exponentialRampToValueAtTime(0.001, start + dur);
-                osc.connect(g);
-                g.connect(ctx.destination);
-                osc.start(start);
-                osc.stop(start + dur);
-            };
-
-            const run = () => {
-                const t = ctx.currentTime;
-                tone(880,  t,        0.2);
-                tone(1100, t + 0.25, 0.2);
-            };
-
-            ctx.state === 'suspended' ? ctx.resume().then(run) : run();
+            const url = NOTIFICATION_SOUNDS[type] || NOTIFICATION_SOUNDS.order;
+            const audio = new Audio(url);
+            audio.play().catch(e => console.warn('Audio play blocked:', e));
         } catch (err) {
             console.error('Notification sound error:', err);
         }
@@ -82,10 +40,10 @@ export function StaffTasks() {
                 const data = await response.json();
                 setTasks(data.map(item => ({
                     id: item.id,
-                    room: item.id.startsWith('clean_') ? item.id.split('_')[1] : item.text.split(' ')[1].replace(':', ''),
-                    type: item.id.startsWith('clean_') ? 'Housekeeping' : item.type === 'order' ? 'Dining' : 'Service',
-                    detail: item.text.split(': ')[1] || item.text,
-                    priority: item.id.startsWith('clean_') ? 'High' : 'Normal',
+                    room: item.room,
+                    type: item.type === 'order' ? 'Dining' : item.type === 'housekeeping' ? 'Housekeeping' : 'Service',
+                    detail: item.details,
+                    priority: item.priority || 'Normal',
                     status: item.status || 'Pending',
                     timestamp: new Date(item.time)
                 })));
@@ -103,46 +61,29 @@ export function StaffTasks() {
         if (!socket) return;
 
         socket.on('admin_activity', (data) => {
-            if (data.type === 'order' || data.type === 'service') {
-                if (data.type === 'order') playSound();
-                setTasks(prev => [{
+            playSound(data.type);
+            setTasks(prev => {
+                const exists = prev.find(t => t.id === data.id);
+                if (exists) return prev;
+                return [{
                     id: data.id || Math.random(),
                     room: data.room,
-                    type: data.type === 'order' ? 'Dining' : 'Service',
+                    type: data.type === 'order' ? 'Dining' : data.type === 'housekeeping' ? 'Housekeeping' : 'Service',
                     detail: data.details,
                     priority: data.priority || 'Medium',
-                    status: 'Pending',
-                    timestamp: new Date()
-                }, ...prev]);
-            }
+                    status: data.status || 'Pending',
+                    timestamp: new Date(data.time || Date.now())
+                }, ...prev];
+            });
         });
 
         socket.on('admin_activity_update', (data) => {
             setTasks(prev => prev.map(t => t.id === data.requestId ? { ...t, status: data.status } : t));
         });
 
-        socket.on('room_status_changed', (data) => {
-            if (data.status === 'Cleaning') {
-                setTasks(prev => {
-                    const exists = prev.find(t => t.id === `clean_${data.roomNumber}`);
-                    if (exists) return prev;
-                    return [{
-                        id: `clean_${data.roomNumber}`,
-                        room: data.roomNumber,
-                        type: 'Housekeeping',
-                        detail: 'Housekeeping Required',
-                        priority: 'High',
-                        status: 'Pending',
-                        timestamp: new Date()
-                    }, ...prev];
-                });
-            }
-        });
-
         return () => {
             socket.off('admin_activity');
             socket.off('admin_activity_update');
-            socket.off('room_status_changed');
         };
     }, [socket]);
 
@@ -207,7 +148,7 @@ export function StaffTasks() {
                         >
                             <div className="relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden group transition-all">
                                 {/* Priority Accent Border */}
-                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${task.priority === 'High' ? 'bg-red-500' : 'bg-blue-400'}`} />
+                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${task.priority === 'High' ? 'bg-red-500' : task.status === 'In Progress' ? 'bg-blue-500' : 'bg-slate-300'}`} />
 
                                 <div className="p-5">
                                     <div className="flex justify-between items-start mb-4 pl-2">
@@ -248,10 +189,18 @@ export function StaffTasks() {
                                     </div>
 
                                     {/* Action Button */}
-                                    {task.status !== 'Completed' ? (
+                                    {task.status === 'Pending' ? (
+                                        <button
+                                            onClick={() => updateStatus(task.id, 'In Progress')}
+                                            className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all border border-blue-500/20"
+                                        >
+                                            <Clock size={18} />
+                                            Accept & Start
+                                        </button>
+                                    ) : task.status === 'In Progress' ? (
                                         <button
                                             onClick={() => updateStatus(task.id, 'Completed')}
-                                            className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all border border-blue-500/20"
+                                            className="w-full bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 transition-all border border-green-500/20"
                                         >
                                             <CheckCircle2 size={18} />
                                             Mark as Complete

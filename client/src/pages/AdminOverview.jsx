@@ -34,7 +34,10 @@ export function AdminOverview() {
                 const statsData = await statsRes.json();
                 const activityData = await activityRes.json();
                 setStats(statsData);
-                setActivities(activityData);
+                setActivities(activityData.map(act => ({
+                    ...act,
+                    text: `Room ${act.room}: ${act.details}`
+                })));
             } catch (err) {
                 console.error('Failed to fetch data:', err);
             } finally {
@@ -51,13 +54,9 @@ export function AdminOverview() {
 
             socket.on('admin_activity', (newActivity) => {
                 setActivities(prev => {
-                    const typeLabel = newActivity.type === 'order'
-                        ? (newActivity.details ? newActivity.details : `Order #${newActivity.id.toString().substr(-5)}`)
-                        : `${newActivity.details || 'Service Request'}`;
-
                     const formatted = {
                         id: newActivity.id,
-                        text: newActivity.text || `Room ${newActivity.room}: ${typeLabel}`,
+                        text: `Room ${newActivity.room}: ${newActivity.details}`,
                         time: newActivity.time || new Date(),
                         type: newActivity.type,
                         status: newActivity.status || 'Pending'

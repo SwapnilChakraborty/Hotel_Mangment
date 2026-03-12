@@ -34,7 +34,7 @@ export function GuestHome() {
                         text: data.type === 'order' ? `Order #${data.id.toString().substr(-5)}` : `${data.details}`,
                         time: data.time || new Date(),
                         type: data.type,
-                        status: data.status || 'pending'
+                        status: data.status || 'Pending'
                     }, ...prev].slice(0, 10)); // Keep last 10
                 }
             });

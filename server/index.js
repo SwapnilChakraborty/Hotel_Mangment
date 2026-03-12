@@ -73,7 +73,7 @@ const OrderSchema = new mongoose.Schema({
         quantity: Number
     }],
     total: Number,
-    status: { type: String, default: 'pending', enum: ['pending', 'preparing', 'delivered', 'cancelled'] },
+    status: { type: String, default: 'Pending', enum: ['Pending', 'Preparing', 'Delivered', 'Cancelled'] },
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -83,7 +83,7 @@ const ServiceRequestSchema = new mongoose.Schema({
     roomNumber: { type: String, required: true },
     type: { type: String, required: true }, // 'housekeeping', 'laundry', 'maintenance'
     details: String,
-    status: { type: String, default: 'pending', enum: ['pending', 'in-progress', 'completed'] },
+    status: { type: String, default: 'Pending', enum: ['Pending', 'In Progress', 'Completed'] },
     priority: { type: String, default: 'normal', enum: ['low', 'normal', 'high', 'urgent'] },
     assignedStaff: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
     createdAt: { type: Date, default: Date.now }
@@ -197,7 +197,7 @@ app.post('/api/orders', async (req, res) => {
     try {
         let order;
         if (isMockMode) {
-            order = { ...req.body, _id: 'mock_order_' + Date.now(), createdAt: new Date(), status: 'pending' };
+            order = { ...req.body, _id: 'mock_order_' + Date.now(), createdAt: new Date(), status: 'Pending' };
             mockOrders.push(order);
         } else {
             order = new Order(req.body);
@@ -208,7 +208,7 @@ app.post('/api/orders', async (req, res) => {
             id: order._id.toString(),
             room: order.roomNumber,
             type: 'order',
-            details: order.items.map(i => `${i.name} (x${i.quantity})`).join(', '),
+            details: order.items.map(i => `${i.quantity}x ${i.name}`).join(', '),
             total: order.total,
             status: order.status,
             time: order.createdAt
@@ -239,7 +239,8 @@ app.post('/api/service-requests', async (req, res) => {
             details: request.details,
             priority: request.priority,
             status: request.status,
-            time: request.createdAt
+            time: request.createdAt,
+            serviceType: request.type
         });
 
         res.json({ message: 'Request submitted successfully', request });
@@ -343,10 +344,11 @@ app.post('/api/checkout', async (req, res) => {
         io.emit('admin_activity', {
             id: `clean_${roomNumber}`,
             room: roomNumber,
-            type: 'service',
+            type: 'housekeeping',
             details: 'Housekeeping Required',
             time: new Date(),
-            status: 'Pending'
+            status: 'Pending',
+            priority: 'High'
         });
         broadcastStats();
 
@@ -399,10 +401,11 @@ app.post('/api/update-room-status', async (req, res) => {
             io.emit('admin_activity', {
                 id: `clean_${roomNumber}`,
                 room: roomNumber,
-                type: 'service',
+                type: 'housekeeping',
                 details: 'Housekeeping Required',
                 time: new Date(),
-                status: 'Pending'
+                status: 'Pending',
+                priority: 'High'
             });
         }
         broadcastStats();
@@ -509,10 +512,13 @@ app.get('/api/activity', async (req, res) => {
         const activities = [
             ...serviceRequests.map(r => ({
                 id: r._id.toString(),
-                text: `Room ${r.roomNumber}: ${r.type.charAt(0).toUpperCase() + r.type.slice(1)} Request`,
+                room: r.roomNumber,
+                details: r.details,
                 time: r.createdAt,
                 type: 'service',
-                status: r.status
+                status: r.status,
+                priority: r.priority,
+                serviceType: r.type
             })),
             ...orders.map(o => {
                 const orderText = o.items && o.items.length > 0
@@ -520,18 +526,22 @@ app.get('/api/activity', async (req, res) => {
                     : `Order #${o._id.toString().substring(19)}`;
                 return {
                     id: o._id.toString(),
-                    text: `Room ${o.roomNumber}: ${orderText}`,
+                    room: o.roomNumber,
+                    details: orderText,
                     time: o.createdAt,
                     type: 'order',
-                    status: o.status
+                    status: o.status,
+                    total: o.total
                 };
             }),
             ...cleaningRooms.map(r => ({
                 id: `clean_${r.roomNumber}`,
-                text: `Room ${r.roomNumber}: Housekeeping Required`,
-                time: new Date(), // Mocking current requirement
-                type: 'service',
-                status: 'Pending'
+                room: r.roomNumber,
+                details: 'Housekeeping Required',
+                time: new Date(), 
+                type: 'housekeeping',
+                status: 'Pending',
+                priority: 'High'
             }))
         ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 15);
 
