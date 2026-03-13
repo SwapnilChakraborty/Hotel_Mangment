@@ -63,6 +63,12 @@ export function GuestHome() {
         visible: { opacity: 1, y: 0 }
     };
 
+    const formatDate = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
     return (
         <div className="max-w-xl mx-auto space-y-12 pb-20 animate-in fade-in duration-1000 bg-[#f4f1ea] min-h-screen">
             {/* Hero Section with Elegant Styling */}
@@ -100,7 +106,7 @@ export function GuestHome() {
             <motion.div variants={itemVariants} initial="hidden" animate="visible" className="px-6">
                 <div className="grid grid-cols-3 divide-x divide-[#ab9373]/20 border border-[#ab9373]/20 bg-[#fdfdfc] shadow-sm">
                     <StatusItem label="YOUR ROOM" value={roomNumber} icon={<Key size={14} className="text-[#5a4634]" />} />
-                    <StatusItem label="CHECKOUT" value="Oct 24" icon={<Calendar size={14} className="text-[#5a4634]" />} />
+                    <StatusItem label="CHECKOUT" value={formatDate(customer.checkOut)} icon={<Calendar size={14} className="text-[#5a4634]" />} />
                     <StatusItem label="WEATHER" value="72°F" subValue="SUNNY" icon={<Sun size={14} className="text-[#8b7355]" />} />
                 </div>
             </motion.div>
