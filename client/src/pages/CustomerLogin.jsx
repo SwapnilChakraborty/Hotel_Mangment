@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Logo } from '../components/ui/Logo';
 import { KeyRound, ArrowRight, Loader2 } from 'lucide-react';
+import { API_URL } from '../config/api';
 
 export function CustomerLogin() {
     const [customerID, setCustomerID] = useState('');
@@ -18,8 +19,7 @@ export function CustomerLogin() {
 
         const normalizedID = customerID.trim().toUpperCase();
 
-import { API_URL } from '../config/api';
-...
+        try {
             console.log('Attempting login to:', `${API_URL}/api/customer-login`);
 
             const response = await fetch(`${API_URL}/api/customer-login`, {

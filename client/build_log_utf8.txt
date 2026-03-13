@@ -1,0 +1,97 @@
+﻿
+> client@0.0.0 build
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 26 modules transformed.
+node.exe : 
+[31mΓ£ù[39m Build 
+failed in 781ms
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Users\USER\npm-glob
+al/node_m ...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: ([31mΓ£ù[39m   
+  Build failed in 7    
+81ms:String) [], R    
+emoteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+[31merror during 
+build:
+[31m[vite:esbuild] 
+Transform failed with 
+1 error:
+E:/Roomflow/client/src/
+pages/CustomerLogin.jsx
+:21:7: ERROR: 
+Unexpected "{"[31m
+file: [36mE:/Roomflow/
+client/src/pages/Custom
+erLogin.jsx:21:7[31m
+[33m
+[33mUnexpected 
+"{"[33m
+19 |          const 
+normalizedID = customer
+ID.trim().toUpperCase()
+;
+20 |  
+21 |  import { API_URL 
+} from '../config/api';
+   |         ^
+22 |  ...
+23 |              conso
+le.log('Attempting 
+login to:', `${API_URL}
+/api/customer-login`);
+[31m
+    at 
+failureErrorWithLog (E:
+\Roomflow\client\node_m
+odules\esbuild\lib\main
+.js:1467:15)
+    at E:\Roomflow\clie
+nt\node_modules\esbuild
+\lib\main.js:736:50
+    at responseCallback
+s.<computed> (E:\Roomfl
+ow\client\node_modules\
+esbuild\lib\main.js:603
+:9)
+    at 
+handleIncomingPacket (E
+:\Roomflow\client\node_
+modules\esbuild\lib\mai
+n.js:658:12)
+    at 
+Socket.readFromStdout (
+E:\Roomflow\client\node
+_modules\esbuild\lib\ma
+in.js:581:7)
+    at Socket.emit 
+(node:events:508:28)
+    at addChunk (node:i
+nternal/streams/readabl
+e:559:12)
+    at readableAddChunk
+PushByteMode (node:inte
+rnal/streams/readable:5
+10:3)
+    at Readable.push (n
+ode:internal/streams/re
+adable:390:5)
+    at 
+Pipe.onStreamRead (node
+:internal/stream_base_c
+ommons:189:23)[39m
