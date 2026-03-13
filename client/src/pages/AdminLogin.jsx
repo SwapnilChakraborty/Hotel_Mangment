@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { User, Lock, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { API_URL } from '../config/api';
 
 export function AdminLogin() {
     const [username, setUsername] = useState('');
@@ -17,7 +18,7 @@ export function AdminLogin() {
         setError('');
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hotel-mangment.onrender.com'}/api/staff-login`, {
+            const response = await fetch(`${API_URL}/api/staff-login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })

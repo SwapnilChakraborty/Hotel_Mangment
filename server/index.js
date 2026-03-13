@@ -418,7 +418,9 @@ app.post('/api/update-room-status', async (req, res) => {
 
 // Customer Login Route
 app.post('/api/customer-login', async (req, res) => {
-    const { customerID } = req.body;
+    let { customerID } = req.body;
+    if (customerID) customerID = customerID.trim().toUpperCase();
+
     try {
         let customer;
         if (isMockMode) {

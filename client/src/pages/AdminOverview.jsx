@@ -16,6 +16,7 @@ import { Button } from '../components/ui/Button';
 import { StatWidget } from '../components/ui/StatWidget';
 import { AreaChart } from '../components/admin/AreaChart';
 import { useSocket } from '../context/SocketContext';
+import { API_URL } from '../config/api';
 
 export function AdminOverview() {
     const [stats, setStats] = useState(null);
@@ -26,7 +27,6 @@ export function AdminOverview() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-mangment.onrender.com';
                 const [statsRes, activityRes] = await Promise.all([
                     fetch(`${API_URL}/api/stats`),
                     fetch(`${API_URL}/api/activity`)

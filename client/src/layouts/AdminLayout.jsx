@@ -21,8 +21,9 @@ import {
 } from 'lucide-react';
 import { Logo } from '../components/ui/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_URL } from '../config/api';
 
-const API = () => import.meta.env.VITE_API_URL || 'https://hotel-mangment.onrender.com';
+const API = () => API_URL;
 
 const NAV_PAGES = [
     { label: 'Overview',       path: '/admin',            icon: LayoutDashboard },

@@ -16,11 +16,16 @@ export function CustomerLogin() {
         setLoading(true);
         setError('');
 
-        try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hotel-mangment.onrender.com'}/api/customer-login`, {
+        const normalizedID = customerID.trim().toUpperCase();
+
+import { API_URL } from '../config/api';
+...
+            console.log('Attempting login to:', `${API_URL}/api/customer-login`);
+
+            const response = await fetch(`${API_URL}/api/customer-login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ customerID })
+                body: JSON.stringify({ customerID: normalizedID })
             });
 
             const data = await response.json();
@@ -34,6 +39,7 @@ export function CustomerLogin() {
             navigate('/guest');
         } catch (err) {
             setError(err.message);
+            console.error('Login error:', err);
         } finally {
             setLoading(false);
         }

@@ -6,6 +6,7 @@ import { useSocket } from '../context/SocketContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_URL } from '../config/api';
 
 export function GuestCart() {
     const { cart, updateQuantity, removeFromCart, total, clearCart } = useCart();
@@ -27,7 +28,7 @@ export function GuestCart() {
         };
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hotel-mangment.onrender.com'}/api/orders`, {
+            const response = await fetch(`${API_URL}/api/orders`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(orderData)
