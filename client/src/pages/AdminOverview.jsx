@@ -36,7 +36,7 @@ export function AdminOverview() {
                 setStats(statsData);
                 setActivities(activityData.map(act => ({
                     ...act,
-                    text: `Room ${act.room}: ${act.details}`
+                    text: `Room ${act.room} ${act.type || 'Service'}: ${act.details}`
                 })));
             } catch (err) {
                 console.error('Failed to fetch data:', err);
@@ -56,7 +56,7 @@ export function AdminOverview() {
                 setActivities(prev => {
                     const formatted = {
                         id: newActivity.id,
-                        text: `Room ${newActivity.room}: ${newActivity.details}`,
+                        text: `Room ${newActivity.room} ${newActivity.type || 'Service'}: ${newActivity.details}`,
                         time: newActivity.time || new Date(),
                         type: newActivity.type,
                         status: newActivity.status || 'Pending'

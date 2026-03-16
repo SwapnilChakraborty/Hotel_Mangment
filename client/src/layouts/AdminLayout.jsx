@@ -15,6 +15,7 @@ import {
     Menu,
     X,
     Bed,
+    MessageSquare,
     User,
     FileText,
     Loader2
@@ -30,6 +31,7 @@ const NAV_PAGES = [
     { label: 'Active Rooms',   path: '/admin/rooms',      icon: BedDouble },
     { label: 'Maintenance',    path: '/admin/maintenance', icon: SettingsIcon },
     { label: 'Live Requests',  path: '/admin/requests',   icon: ClipboardList },
+    { label: 'Guest Messages', path: '/admin/messages',   icon: MessageSquare },
     { label: 'CRM Dashboard',  path: '/admin/crm',        icon: Handshake },
     { label: 'Staff Panel',    path: '/admin/staff',      icon: Users },
     { label: 'Analytics',      path: '/admin/analytics',  icon: BarChart3 },
@@ -175,6 +177,7 @@ export function AdminLayout() {
                         )}
                         <SidebarItem to="/admin/staff"       icon={<Users size={18} />}           label="Staff Panel" />
                         <SidebarItem to="/admin/analytics"   icon={<BarChart3 size={18} />}       label="Analytics" />
+                        <SidebarItem to="/admin/messages"    icon={<MessageSquare size={18} />}   label="Messages" />
                     </nav>
                 </div>
 
@@ -226,6 +229,7 @@ export function AdminLayout() {
                                     )}
                                     <SidebarItem to="/admin/staff"       icon={<Users size={18} />}           label="Staff Panel"   onClick={() => setIsMobileMenuOpen(false)} />
                                     <SidebarItem to="/admin/analytics"   icon={<BarChart3 size={18} />}       label="Analytics"     onClick={() => setIsMobileMenuOpen(false)} />
+                                    <SidebarItem to="/admin/messages"    icon={<MessageSquare size={18} />}   label="Messages"      onClick={() => setIsMobileMenuOpen(false)} />
                                 </nav>
                             </div>
                             <div className="p-4 border-t border-slate-100 space-y-1">

@@ -3,7 +3,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { StatWidget } from '../components/ui/StatWidget';
-import { MoreVertical, User, Sparkles, AlertTriangle, Bed, CheckCircle2, Waves, UserPlus, X, Loader2, Hammer } from 'lucide-react';
+import { MoreVertical, User, Sparkles, AlertTriangle, Bed, CheckCircle2, Waves, UserPlus, X, Loader2, Hammer, FileText, Circle, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
 import { API_URL } from '../config/api';
@@ -14,6 +14,7 @@ export function RoomManagement() {
     const [filter, setFilter] = useState('All');
     const [allotModal, setAllotModal] = useState(null); // room data if modal open
     const [guestName, setGuestName] = useState('');
+    const [phone, setPhone] = useState('');
     const [checkIn, setCheckIn] = useState('');
     const [checkOut, setCheckOut] = useState('');
     const [allotting, setAllotting] = useState(false);
@@ -60,7 +61,7 @@ export function RoomManagement() {
             const response = await fetch(`${API_URL}/api/allot-room`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ roomNumber: allotModal.roomNumber, guestName, checkIn, checkOut })
+                body: JSON.stringify({ roomNumber: allotModal.roomNumber, guestName, phone, checkIn, checkOut })
             });
 
             if (!response.ok) throw new Error('Failed to allot room');
@@ -68,6 +69,7 @@ export function RoomManagement() {
             const result = await response.json();
             setAllotSuccess({ guestID: result.customerID });
             setGuestName('');
+            setPhone('');
             setCheckIn('');
             setCheckOut('');
             fetchRooms();
@@ -80,20 +82,21 @@ export function RoomManagement() {
     };
 
     const handleCheckout = async (roomNumber) => {
-        if (!confirm(`Check out Room ${roomNumber}?`)) return;
+        if (!window.confirm('Are you sure you want to checkout this guest?')) return;
         try {
             const response = await fetch(`${API_URL}/api/checkout`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ roomNumber })
             });
+
             if (!response.ok) throw new Error('Checkout failed');
             fetchRooms();
         } catch (err) {
-            console.error(err);
-            alert('Error during check-out');
+            console.error('Checkout error:', err);
         }
     };
+
 
     const handleUpdateStatus = async (roomNumber, status) => {
         try {
@@ -223,13 +226,15 @@ export function RoomManagement() {
                                                 </button>
                                             )}
                                             {room.status === 'Occupied' && (
-                                                <button
-                                                    onClick={() => handleCheckout(room.roomNumber)}
-                                                    className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                                                    title="Check-out"
-                                                >
-                                                    <X size={18} />
-                                                </button>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handleCheckout(room.roomNumber)}
+                                                        className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                                        title="Check-out"
+                                                    >
+                                                        <X size={18} />
+                                                    </button>
+                                                </div>
                                             )}
                                             {(room.status === 'Cleaning' || room.status === 'Maintenance') && (
                                                 <button
@@ -350,6 +355,21 @@ export function RoomManagement() {
                                                         autoFocus
                                                     />
                                                 </div>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number (WhatsApp)</label>
+                                                <div className="relative">
+                                                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-sm">+</div>
+                                                    <input
+                                                        type="tel"
+                                                        value={phone}
+                                                        onChange={(e) => setPhone(e.target.value)}
+                                                        placeholder="919988776655"
+                                                        className="w-full bg-slate-50 border-none rounded-3xl py-5 pl-10 pr-6 font-bold text-primary placeholder:text-slate-300 focus:ring-4 focus:ring-primary/10 transition-all"
+                                                        required
+                                                    />
+                                                </div>
+                                                <p className="text-[9px] text-slate-400 ml-1 font-medium italic">* Include country code without + (e.g. 91 for India)</p>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4">

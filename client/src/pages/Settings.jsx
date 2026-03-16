@@ -15,6 +15,7 @@ import { API_URL } from '../config/api';
 export function Settings() {
     const [settings, setSettings] = useState({
         hotelName: 'RoomFlow Premium',
+        hotelId: 'RF-2026-01',
         crmEnabled: true,
         currency: 'USD',
         taxRate: 12,
@@ -108,6 +109,15 @@ export function Settings() {
                                     type="text"
                                     value={settings.hotelName}
                                     onChange={e => setSettings({ ...settings, hotelName: e.target.value })}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 focus:ring-4 focus:ring-primary/5 focus:bg-white outline-none transition-all font-semibold"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Hotel ID</label>
+                                <input
+                                    type="text"
+                                    value={settings.hotelId}
+                                    onChange={e => setSettings({ ...settings, hotelId: e.target.value })}
                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 focus:ring-4 focus:ring-primary/5 focus:bg-white outline-none transition-all font-semibold"
                                 />
                             </div>

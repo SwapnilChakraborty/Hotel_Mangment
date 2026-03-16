@@ -1,20 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Wifi, Utensils, MessageSquare, Briefcase, Car, Sparkles, MoreHorizontal, Sun, Calendar, Clock, MapPin, Activity, CheckCircle2, Clock as ClockIcon, TrendingUp } from 'lucide-react';
+import { Key, Wifi, Utensils, MessageSquare, Briefcase, Car, Sparkles, MoreHorizontal, Sun, Calendar, Clock, MapPin, Activity, CheckCircle2, Clock as ClockIcon, TrendingUp, HandPlatter, SprayCan, PhoneCall, ArrowRight as ArrowRightIcon } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
+import { Link, useNavigate } from 'react-router-dom';
 
 export function GuestHome() {
-    const customer = JSON.parse(localStorage.getItem('customer') || '{}');
+    const getCustomerSafe = () => {
+        try {
+            return JSON.parse(localStorage.getItem('customer') || '{}');
+        } catch (e) {
+            console.error('Failed to parse customer from localStorage', e);
+            return {};
+        }
+    };
+
+    const customer = getCustomerSafe();
     const guestName = customer.name || 'Anderson';
     const roomNumber = (customer.room?.roomNumber || customer.room || '402').toString();
     const { socket } = useSocket();
+    const navigate = useNavigate();
     const [activities, setActivities] = useState([]);
+    const [hotelName, setHotelName] = useState('Vishnu Suites');
+    const [requesting, setRequesting] = useState(false);
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/guest-activity/${roomNumber}`)
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+        
+        // Fetch Hotel Info
+        fetch(`${API_URL}/api/settings`)
             .then(res => res.json())
-            .then(data => setActivities(data))
+            .then(data => {
+                if (data.hotelName) setHotelName(data.hotelName);
+            })
+            .catch(err => console.error('Error fetching settings:', err));
+
+        // Fetch Activities
+        fetch(`${API_URL}/api/guest-activity/${roomNumber}`)
+            .then(res => res.json())
+            .then(data => {
+                setActivities(prev => {
+                    // Filter out any fetched items already present (by ID) to avoid duplicates with socket updates
+                    const existingIds = new Set(prev.map(a => a.id));
+                    const newItems = data.filter(a => !existingIds.has(a.id));
+                    return [...prev, ...newItems].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 15);
+                });
+            })
             .catch(err => console.error('Error fetching activities:', err));
 
         if (socket) {
@@ -27,15 +58,25 @@ export function GuestHome() {
             });
 
             socket.on('admin_activity', (data) => {
-                // If it's related to this room
                 if (data.room === roomNumber) {
-                    setActivities(prev => [{
-                        id: data.id,
-                        text: data.type === 'order' ? `Order #${data.id.toString().substr(-5)}` : `${data.details}`,
-                        time: data.time || new Date(),
-                        type: data.type,
-                        status: data.status || 'Pending'
-                    }, ...prev].slice(0, 10)); // Keep last 10
+                    setActivities(prev => {
+                        // Prevent duplicates from multiple socket deliveries or race conditions
+                        if (prev.find(a => a.id === data.id)) return prev;
+
+                        const newActivity = {
+                            id: data.id,
+                            text: data.type === 'order' 
+                                ? `Order #${data.id.toString().slice(-5).toUpperCase()}` 
+                                : data.type === 'service'
+                                    ? `${data.serviceType ? data.serviceType.charAt(0).toUpperCase() + data.serviceType.slice(1) : 'Service'} Request`
+                                    : data.details || 'New Activity',
+                            time: data.time || new Date(),
+                            type: data.type,
+                            status: data.status || 'Pending'
+                        };
+
+                        return [newActivity, ...prev].slice(0, 15);
+                    });
                 }
             });
         }
@@ -47,6 +88,32 @@ export function GuestHome() {
             }
         };
     }, [roomNumber, socket]);
+
+    const handleHousekeeping = async () => {
+        if (requesting) return;
+        setRequesting(true);
+        try {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+            const res = await fetch(`${API_URL}/api/service-requests`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomNumber,
+                    type: 'housekeeping',
+                    details: 'Housekeeping requested from guest panel',
+                    priority: 'normal'
+                })
+            });
+            if (res.ok) {
+                // Activity will be updated via socket
+                console.log('Housekeeping requested successfully');
+            }
+        } catch (err) {
+            console.error('Failed to request housekeeping:', err);
+        } finally {
+            setRequesting(false);
+        }
+    };
 
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -71,7 +138,7 @@ export function GuestHome() {
 
     return (
         <div className="max-w-xl mx-auto space-y-12 pb-20 animate-in fade-in duration-1000 bg-[#f4f1ea] min-h-screen">
-            {/* Hero Section with Elegant Styling */}
+            {/* Hero Section */}
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -93,12 +160,70 @@ export function GuestHome() {
                         <span className="text-[10px] font-sans text-white uppercase tracking-[0.2em]">Active Residency</span>
                     </motion.div>
                     <h1 className="text-5xl font-serif text-[#f4f1ea] leading-[1.1] font-normal">
-                        Welcome, <br />
-                        <span className="italic text-[#ab9373]">Mr. {guestName.split(' ')[0]}</span>
+                        Welcome to <br />
+                        <span className="italic text-[#ab9373]">{hotelName}</span>
                     </h1>
-                    <p className="text-[#f4f1ea]/80 font-sans mt-5 text-xs flex items-center gap-2 uppercase tracking-[0.2em]">
-                        <MapPin size={14} className="text-[#ab9373]" /> Vishnu Suites
+                    <p className="text-[#f4f1ea]/80 font-sans mt-5 text-[10px] flex items-center gap-2 uppercase tracking-[0.2em]">
+                        Guest: {guestName} • Room {roomNumber}
                     </p>
+                </div>
+            </motion.div>
+
+            {/* Need anything? Section */}
+            <motion.div variants={itemVariants} initial="hidden" animate="visible" className="px-6 space-y-6">
+                <div className="text-center">
+                    <h2 className="text-3xl font-serif text-[#4a3b2c]">Need anything?</h2>
+                    <p className="text-[#ab9373] text-[10px] uppercase tracking-[0.3em] mt-2">Instant Service Requests</p>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                    <button 
+                        onClick={() => navigate('/guest/services')}
+                        className="flex items-center justify-between p-6 bg-white border border-[#ab9373]/20 shadow-sm group hover:border-[#ab9373] transition-all"
+                    >
+                        <div className="flex items-center gap-5">
+                            <div className="p-3 bg-[#fdfdfc] border border-[#e8e4d9] text-[#5a4634] group-hover:bg-[#5a4634] group-hover:text-white transition-colors">
+                                <HandPlatter size={24} />
+                            </div>
+                            <div className="text-left">
+                                <h4 className="text-lg font-serif text-[#4a3b2c]">Order Food</h4>
+                                <p className="text-[10px] text-[#ab9373] uppercase tracking-widest mt-1">Gourmet room service</p>
+                            </div>
+                        </div>
+                        <ArrowRightIcon size={20} className="text-[#ab9373] group-hover:translate-x-1 transition-transform" />
+                    </button>
+
+                    <button 
+                        onClick={handleHousekeeping}
+                        disabled={requesting}
+                        className="flex items-center justify-between p-6 bg-white border border-[#ab9373]/20 shadow-sm group hover:border-[#ab9373] transition-all disabled:opacity-50"
+                    >
+                        <div className="flex items-center gap-5">
+                            <div className="p-3 bg-[#fdfdfc] border border-[#e8e4d9] text-[#5a4634] group-hover:bg-[#5a4634] group-hover:text-white transition-colors">
+                                <SprayCan size={24} />
+                            </div>
+                            <div className="text-left">
+                                <h4 className="text-lg font-serif text-[#4a3b2c]">Request Housekeeping</h4>
+                                <p className="text-[10px] text-[#ab9373] uppercase tracking-widest mt-1">Cleaning & fresh linens</p>
+                            </div>
+                        </div>
+                        <ArrowRightIcon size={20} className="text-[#ab9373] group-hover:translate-x-1 transition-transform" />
+                    </button>
+
+                    <button 
+                        onClick={() => navigate('/guest/chat')}
+                        className="flex items-center justify-between p-6 bg-white border border-[#ab9373]/20 shadow-sm group hover:border-[#ab9373] transition-all"
+                    >
+                        <div className="flex items-center gap-5">
+                            <div className="p-3 bg-[#fdfdfc] border border-[#e8e4d9] text-[#5a4634] group-hover:bg-[#5a4634] group-hover:text-white transition-colors">
+                                <PhoneCall size={24} />
+                            </div>
+                            <div className="text-left">
+                                <h4 className="text-lg font-serif text-[#4a3b2c]">Call Reception</h4>
+                                <p className="text-[10px] text-[#ab9373] uppercase tracking-widest mt-1">24/7 Front desk support</p>
+                            </div>
+                        </div>
+                        <ArrowRightIcon size={20} className="text-[#ab9373] group-hover:translate-x-1 transition-transform" />
+                    </button>
                 </div>
             </motion.div>
 
@@ -119,10 +244,10 @@ export function GuestHome() {
                 className="space-y-6"
             >
                 <div className="flex justify-between items-center px-6">
-                    <h3 className="text-2xl font-serif text-[#4a3b2c] capitalize">Signature Services</h3>
+                    <h3 className="text-2xl font-serif text-[#4a3b2c] capitalize">Detailed Services</h3>
                     <div className="flex items-center gap-2 border border-[#ab9373] px-3 py-1.5 rounded-none">
                         <Clock size={10} className="text-[#5a4634]" />
-                        <span className="text-[9px] font-sans font-medium text-[#5a4634] uppercase tracking-widest">Available 24/7</span>
+                        <span className="text-[9px] font-sans font-medium text-[#5a4634] uppercase tracking-widest">v2.4.0</span>
                     </div>
                 </div>
 
@@ -138,32 +263,6 @@ export function GuestHome() {
                 </div>
             </motion.div>
 
-            {/* Curated Experiences */}
-            <motion.div
-                variants={itemVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                className="space-y-6"
-            >
-                <div className="flex justify-between items-center px-6">
-                    <h3 className="text-2xl font-serif text-[#4a3b2c] capitalize">Curated For You</h3>
-                </div>
-                <div className="space-y-6 px-6">
-                    <PromoCard
-                        tag="GASTRONOMY"
-                        title="Azure Fine Dining"
-                        sub="Experience Michelin-star seafood with ocean views"
-                        image="https://images.unsplash.com/photo-1559339352-11d035aa65de?q=80&w=800&auto=format&fit=crop"
-                    />
-                    <PromoCard
-                        tag="EXPLORATION"
-                        title="Island Discovery"
-                        sub="Private yacht tours departing from the resort dock"
-                        image="https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=800&auto=format&fit=crop"
-                    />
-                </div>
-            </motion.div>
             {/* Live Feed Section */}
             <motion.div
                 variants={itemVariants}
@@ -175,7 +274,7 @@ export function GuestHome() {
                 <div className="flex justify-between items-center px-6 border-b border-[#ab9373]/20 pb-4">
                     <h3 className="text-2xl font-serif text-[#4a3b2c] capitalize flex items-center gap-2">
                         <Activity size={18} className="text-[#8b7355]" />
-                        Live Updates
+                        Active Requests
                     </h3>
                     <span className="flex h-1.5 w-1.5 relative">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#8b7355] opacity-75"></span>
@@ -213,7 +312,6 @@ export function GuestHome() {
                     </div>
                 </div>
             </motion.div>
-
         </div>
     );
 }
@@ -234,6 +332,7 @@ function StatusItem({ label, value, subValue, icon }) {
 }
 
 function QuickAction({ icon, label, to = "#", delay }) {
+    const navigate = useNavigate();
     return (
         <motion.button
             variants={{
@@ -242,6 +341,7 @@ function QuickAction({ icon, label, to = "#", delay }) {
             }}
             whileTap={{ scale: 0.95 }}
             whileHover={{ y: -2 }}
+            onClick={() => to !== "#" && navigate(to)}
             className="flex flex-col items-center justify-center gap-4 p-5 bg-[#fdfdfc] border border-[#e8e4d9] shadow-sm rounded-none transition-all hover:shadow-md hover:border-[#ab9373] group"
         >
             <div className="p-3 bg-transparent border border-[#e8e4d9] text-[#5a4634] rounded-none group-hover:bg-[#5a4634] group-hover:text-white transition-colors duration-300">
@@ -252,37 +352,20 @@ function QuickAction({ icon, label, to = "#", delay }) {
     );
 }
 
-function PromoCard({ tag, title, sub, image }) {
-    return (
-        <motion.div
-            whileHover={{ scale: 1.01 }}
-            className="relative h-48 w-full rounded-none overflow-hidden group cursor-pointer border border-[#ab9373]/20 shadow-sm"
-        >
-            <img src={image} alt={title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-[#f4f1ea]/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-[#2a221a]/90 via-[#2a221a]/60 to-transparent flex flex-col justify-center p-8 w-3/4">
-                <span className="text-[10px] font-sans text-[#ab9373] tracking-[0.2em] mb-3 uppercase">{tag}</span>
-                <h4 className="text-3xl font-serif text-[#f4f1ea] leading-tight font-normal">{title}</h4>
-                <p className="text-xs text-[#f4f1ea]/80 font-sans mt-3 leading-relaxed">{sub}</p>
-                <div className="mt-5 flex items-center gap-2 text-[10px] font-sans text-[#ab9373] uppercase tracking-widest group-hover:gap-3 transition-all border border-[#ab9373] w-fit px-4 py-2 hover:bg-[#ab9373] hover:text-white">
-                    Explore <ArrowRightIcon className="w-3 h-3" />
-                </div>
-            </div>
-        </motion.div>
-    );
-}
-
-function ArrowRightIcon({ className }) {
-    return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-        </svg>
-    );
-}
-
 function ActivityItem({ activity, isLast }) {
-    const isCompleted = activity.status.toLowerCase() === 'completed' || activity.status.toLowerCase() === 'delivered';
-    const isPending = activity.status.toLowerCase() === 'pending' || activity.status.toLowerCase() === 'new';
+    const status = activity?.status || 'Pending';
+    const isCompleted = status.toLowerCase() === 'completed' || status.toLowerCase() === 'delivered';
+    const isPending = status.toLowerCase() === 'pending' || status.toLowerCase() === 'new';
+
+    const formatTimeSafe = (timeStr) => {
+        try {
+            const date = new Date(timeStr);
+            if (isNaN(date.getTime())) return 'Recently';
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+            return 'Recently';
+        }
+    };
 
     return (
         <motion.div
@@ -301,9 +384,9 @@ function ActivityItem({ activity, isLast }) {
 
             <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-1">
-                    <p className="text-sm font-sans font-medium text-[#4a3b2c] truncate">{activity.text}</p>
+                    <p className="text-sm font-sans font-medium text-[#4a3b2c] truncate">{activity?.text || 'Service Request'}</p>
                     <span className="text-[10px] font-sans text-[#ab9373] whitespace-nowrap ml-2 mt-1">
-                        {new Date(activity.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatTimeSafe(activity?.time)}
                     </span>
                 </div>
                 <div className="flex items-center gap-2 mt-2">
@@ -311,10 +394,10 @@ function ActivityItem({ activity, isLast }) {
                          ${isCompleted ? 'border-[#8b7355]/30 text-[#8b7355]' :
                             isPending ? 'border-[#ab9373]/30 text-[#ab9373]' : 'border-[#5a4634]/30 text-[#5a4634]'}`}
                     >
-                        {activity.status}
+                        {status}
                     </span>
                     <span className="text-[10px] font-sans text-[#8b7355] capitalize italic">
-                        • {activity.type}
+                        • {activity?.type || 'service'}
                     </span>
                 </div>
             </div>

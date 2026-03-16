@@ -48,6 +48,7 @@ const Room = mongoose.model('Room', RoomSchema);
 const CustomerSchema = new mongoose.Schema({
     customerID: { type: String, unique: true, required: true },
     name: { type: String, required: true },
+    phone: { type: String },
     room: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' },
     checkIn: { type: Date, default: Date.now },
     checkOut: { type: Date }
@@ -106,9 +107,19 @@ const LeadSchema = new mongoose.Schema({
 
 const Lead = mongoose.model('Lead', LeadSchema);
 
+const ChatMessageSchema = new mongoose.Schema({
+    roomNumber: { type: String, required: true },
+    sender: { type: String, enum: ['guest', 'admin'], required: true },
+    text: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now }
+});
+
+const ChatMessage = mongoose.model('ChatMessage', ChatMessageSchema);
+
 const SystemSettingsSchema = new mongoose.Schema({
     crmEnabled: { type: Boolean, default: true },
     hotelName: { type: String, default: 'RoomFlow Premium' },
+    hotelId: { type: String, default: 'RF-2026-01' },
     currency: { type: String, default: 'USD' },
     taxRate: { type: Number, default: 12 }
 });
@@ -126,9 +137,11 @@ let mockStaff = [
     { _id: 'mock_staff_1', username: 'staff1', password: 'password123', name: 'John Doe', role: 'Staff' }
 ];
 let mockLeads = [];
+let mockMessages = [];
 let mockSettings = {
     crmEnabled: true,
     hotelName: 'RoomFlow Premium',
+    hotelId: 'RF-2026-01',
     currency: 'USD',
     taxRate: 12
 };
@@ -278,7 +291,7 @@ app.get('/api/rooms', async (req, res) => {
 
 // Allot Room Route
 app.post('/api/allot-room', async (req, res) => {
-    const { roomNumber, guestName, checkIn, checkOut } = req.body;
+    const { roomNumber, guestName, phone, checkIn, checkOut } = req.body;
     try {
         let room, customerID, customer;
 
@@ -288,7 +301,7 @@ app.post('/api/allot-room', async (req, res) => {
             if (room.status !== 'Ready') return res.status(400).json({ error: 'Room is not ready' });
 
             customerID = 'CUST' + Math.floor(1000 + Math.random() * 9000);
-            customer = { _id: 'mock_cust_' + Date.now(), customerID, name: guestName, room: { ...room }, checkIn, checkOut };
+            customer = { _id: 'mock_cust_' + Date.now(), customerID, name: guestName, phone, room: { ...room }, checkIn, checkOut };
             mockCustomers.push({ ...customer, room: room._id }); // Store ID in array to prevent circularity if saved
 
             room.status = 'Occupied';
@@ -299,7 +312,7 @@ app.post('/api/allot-room', async (req, res) => {
             if (room.status !== 'Ready') return res.status(400).json({ error: 'Room is not ready' });
 
             customerID = 'CUST' + Math.floor(1000 + Math.random() * 9000);
-            customer = new Customer({ customerID, name: guestName, room: room._id, checkIn, checkOut });
+            customer = new Customer({ customerID, name: guestName, phone, room: room._id, checkIn, checkOut });
             await customer.save();
 
             room.status = 'Occupied';
@@ -330,6 +343,9 @@ app.post('/api/checkout', async (req, res) => {
             }
             room.status = 'Cleaning';
             room.currentGuest = null;
+            
+            // Clear chat history in mock mode
+            mockMessages = mockMessages.filter(m => m.roomNumber !== roomNumber);
         } else {
             room = await Room.findOne({ roomNumber }).populate('currentGuest');
             if (!room) return res.status(404).json({ error: 'Room not found' });
@@ -339,6 +355,9 @@ app.post('/api/checkout', async (req, res) => {
             room.status = 'Cleaning';
             room.currentGuest = null;
             await room.save();
+            
+            // Clear chat history in DB
+            await ChatMessage.deleteMany({ roomNumber });
         }
 
         io.emit('room_status_changed', { roomNumber, status: 'Cleaning' });
@@ -683,13 +702,36 @@ app.patch('/api/crm/leads/:id', async (req, res) => {
 // Settings Routes
 app.get('/api/settings', async (req, res) => {
     try {
-        if (isMockMode) return res.json(mockSettings);
-        let settings = await SystemSettings.findOne();
-        if (!settings) {
-            settings = new SystemSettings();
-            await settings.save();
+        let settings;
+        if (isMockMode) {
+            settings = { ...mockSettings };
+        } else {
+            settings = await SystemSettings.findOne();
+            if (!settings) {
+                settings = new SystemSettings();
+                await settings.save();
+            }
+            settings = settings.toObject();
         }
-        res.json(settings);
+
+        // Add room count
+        const totalRooms = isMockMode ? mockRooms.length : await Room.countDocuments();
+        res.json({ ...settings, totalRooms });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Chat Routes
+app.get('/api/chat/:roomNumber', async (req, res) => {
+    const { roomNumber } = req.params;
+    try {
+        if (isMockMode) {
+            const messages = mockMessages.filter(m => m.roomNumber === roomNumber);
+            return res.json(messages);
+        }
+        const messages = await ChatMessage.find({ roomNumber }).sort({ timestamp: 1 });
+        res.json(messages);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -764,6 +806,60 @@ io.on('connection', (socket) => {
 
         io.to(`room_${roomNumber}`).emit('status_updated', { requestId, status });
         io.emit('admin_activity_update', { requestId, status });
+    });
+
+    // Chat Events
+    socket.on('guest_send_message', async (data) => {
+        const { roomNumber, text } = data;
+        const messageData = {
+            roomNumber,
+            sender: 'guest',
+            text,
+            timestamp: new Date()
+        };
+
+        if (isMockMode) {
+            messageData._id = 'msg_' + Date.now();
+            mockMessages.push(messageData);
+        } else {
+            const msg = new ChatMessage(messageData);
+            await msg.save();
+            messageData._id = msg._id;
+        }
+
+        // Emit to current room and admin
+        io.to(`room_${roomNumber}`).emit('new_message', messageData);
+        io.emit('admin_new_message', messageData);
+        io.emit('admin_activity', {
+            id: messageData._id,
+            room: roomNumber,
+            type: 'msg',
+            details: text,
+            time: messageData.timestamp
+        });
+    });
+
+    socket.on('admin_reply_message', async (data) => {
+        const { roomNumber, text } = data;
+        const messageData = {
+            roomNumber,
+            sender: 'admin',
+            text,
+            timestamp: new Date()
+        };
+
+        if (isMockMode) {
+            messageData._id = 'msg_' + Date.now();
+            mockMessages.push(messageData);
+        } else {
+            const msg = new ChatMessage(messageData);
+            await msg.save();
+            messageData._id = msg._id;
+        }
+
+        // Emit to the specific guest room and global admin (to sync across admin tabs)
+        io.to(`room_${roomNumber}`).emit('new_message', messageData);
+        io.emit('admin_new_message', messageData);
     });
 
     socket.on('disconnect', () => {

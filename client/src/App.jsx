@@ -22,6 +22,8 @@ import { Settings } from './pages/Settings';
 import { CRM } from './pages/CRM';
 import { Performance } from './pages/Performance';
 import { StaffProfile } from './pages/StaffProfile';
+import { AdminChat } from './pages/AdminChat';
+
 
 const AdminRoute = ({ children }) => {
   const staff = JSON.parse(localStorage.getItem('staff'));
@@ -66,6 +68,7 @@ function App() {
           <Route path="staff" element={<div className="p-12 text-center text-slate-400 font-bold text-2xl animate-pulse">Team Management</div>} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="crm" element={<CRM />} />
+          <Route path="messages" element={<AdminChat />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

@@ -157,7 +157,7 @@ export function StaffTasks() {
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                                                    #{task.id.toString().slice(-4).toUpperCase()}
+                                                    Room {task.room} {task.type}
                                                 </h3>
                                                 {task.priority === 'High' && (
                                                     <span className="bg-red-50 text-red-500 text-[9px] font-black px-2 py-0.5 rounded-md tracking-widest uppercase">Priority</span>
@@ -169,8 +169,7 @@ export function StaffTasks() {
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="font-bold text-slate-900 text-sm">{task.type}</p>
-                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">Room {task.room}</p>
+                                            <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">ID: #{task.id.toString().slice(-4).toUpperCase()}</p>
                                         </div>
                                     </div>
 

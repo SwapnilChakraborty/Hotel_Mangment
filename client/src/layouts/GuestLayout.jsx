@@ -1,12 +1,23 @@
 import React, { useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Bell, MessageSquare, User, Utensils, Sparkles, Menu, Compass } from 'lucide-react';
+import { Home, Bell, MessageSquare, User, Utensils, Sparkles, Menu, Compass, CheckCircle2, Info, X } from 'lucide-react';
 import { Logo } from '../components/ui/Logo';
 import { useSocket } from '../context/SocketContext';
+import { ChatBot } from '../components/ChatBot';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function GuestLayout() {
     const navigate = useNavigate();
     const { socket } = useSocket();
+    const [toasts, setToasts] = React.useState([]);
+
+    const addToast = (title, message, type = 'info') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, title, message, type }]);
+        setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+        }, 5000);
+    };
 
     useEffect(() => {
         if (!socket) return;
@@ -24,8 +35,27 @@ export function GuestLayout() {
 
         socket.on('guest_checkout', handleGuestCheckout);
 
+        socket.on('status_updated', (data) => {
+            addToast('Status Update', `Your request status is now: ${data.status}`, 'success');
+        });
+
+        socket.on('admin_activity', (data) => {
+            const customer = JSON.parse(localStorage.getItem('customer') || '{}');
+            const roomNumber = (customer.room?.roomNumber || customer.room || '').toString();
+
+            if (data.room === roomNumber && data.type !== 'msg') {
+                const title = data.type === 'order' ? 'Order Update' : 'Service Update';
+                const message = data.type === 'order' 
+                    ? `Order #${data.id.toString().slice(-5).toUpperCase()} has been updated`
+                    : data.details || 'Your request has been updated';
+                addToast(title, message, 'info');
+            }
+        });
+
         return () => {
             socket.off('guest_checkout', handleGuestCheckout);
+            socket.off('status_updated');
+            socket.off('admin_activity');
         };
     }, [socket, navigate]);
 
@@ -60,13 +90,37 @@ export function GuestLayout() {
                 <BottomNavLink to="/guest/profile" icon={<User size={24} />} label="PROFILE" />
             </nav>
 
-            {/* Chat Floating Button */}
-            <NavLink
-                to="/guest/chat"
-                className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-2xl shadow-primary/30 z-40 transition-transform active:scale-90"
-            >
-                <MessageSquare size={24} fill="white" />
-            </NavLink>
+            {/* Chat Bot Widget */}
+            <ChatBot />
+
+            {/* Notification Toasts */}
+            <div className="fixed top-24 left-1/2 -translate-x-1/2 w-full max-w-[340px] z-[100] space-y-3 pointer-events-none">
+                <AnimatePresence>
+                    {toasts.map(toast => (
+                        <motion.div
+                            key={toast.id}
+                            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                            className="bg-white/95 backdrop-blur-md border border-slate-100 shadow-xl rounded-2xl p-4 flex items-start gap-3 pointer-events-auto"
+                        >
+                            <div className={`p-2 rounded-xl shrink-0 ${toast.type === 'success' ? 'bg-green-50 text-green-500' : 'bg-blue-50 text-blue-500'}`}>
+                                {toast.type === 'success' ? <CheckCircle2 size={18} /> : <Info size={18} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-black text-primary uppercase tracking-wider leading-none mb-1">{toast.title}</p>
+                                <p className="text-xs font-medium text-slate-500 line-clamp-2">{toast.message}</p>
+                            </div>
+                            <button 
+                                onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                                className="p-1 text-slate-300 hover:text-slate-500 transition-colors"
+                            >
+                                <X size={14} />
+                            </button>
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
+            </div>
         </div>
     );
 }

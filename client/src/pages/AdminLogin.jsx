@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
-import { User, Lock, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
+import { User, Lock, Loader2, ShieldCheck, ArrowRight, Building2, Hash, DoorOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { API_URL } from '../config/api';
 
@@ -10,7 +10,32 @@ export function AdminLogin() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [hotelInfo, setHotelInfo] = useState({
+        hotelName: 'Loading...',
+        hotelId: '---',
+        totalRooms: 0
+    });
     const navigate = useNavigate();
+
+    useEffect(() => {
+        fetchHotelInfo();
+    }, []);
+
+    const fetchHotelInfo = async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/settings`);
+            if (response.ok) {
+                const data = await response.json();
+                setHotelInfo({
+                    hotelName: data.hotelName || 'RoomFlow',
+                    hotelId: data.hotelId || 'RF-2026-01',
+                    totalRooms: data.totalRooms || 0
+                });
+            }
+        } catch (err) {
+            console.error('Failed to fetch hotel info:', err);
+        }
+    };
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -61,6 +86,42 @@ export function AdminLogin() {
                     </div>
                     <h1 className="text-4xl font-black text-primary tracking-tight">Staff Portal</h1>
                     <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-3">Access restricted to authorized personnel</p>
+                </div>
+
+                {/* Hotel Info Badge Area */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                    <motion.div 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="bg-white/50 backdrop-blur-md border border-white/50 p-4 rounded-3xl flex flex-col items-center justify-center gap-1 shadow-sm"
+                    >
+                        <Building2 size={16} className="text-primary mb-1" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Hotel Name</span>
+                        <span className="text-xs font-bold text-primary truncate w-full text-center">{hotelInfo.hotelName}</span>
+                    </motion.div>
+                    
+                    <motion.div 
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="bg-white/50 backdrop-blur-md border border-white/50 p-4 rounded-3xl flex flex-col items-center justify-center gap-1 shadow-sm"
+                    >
+                        <Hash size={16} className="text-primary mb-1" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hotel ID</span>
+                        <span className="text-xs font-bold text-primary">{hotelInfo.hotelId}</span>
+                    </motion.div>
+
+                    <motion.div 
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="bg-white/50 backdrop-blur-md border border-white/50 p-4 rounded-3xl flex flex-col items-center justify-center gap-1 shadow-sm"
+                    >
+                        <DoorOpen size={16} className="text-primary mb-1" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rooms</span>
+                        <span className="text-xs font-bold text-primary">{hotelInfo.totalRooms}</span>
+                    </motion.div>
                 </div>
 
                 <Card className="p-10 border-white/50 bg-white/80 backdrop-blur-xl shadow-3xl shadow-primary/10 rounded-[2.5rem]">
