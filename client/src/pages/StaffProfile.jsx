@@ -4,8 +4,16 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Logo } from '../components/ui/Logo';
 
+import { useNavigate } from 'react-router-dom';
+
 export function StaffProfile() {
+    const navigate = useNavigate();
     const staff = JSON.parse(localStorage.getItem('staff')) || { name: 'Staff Member', role: 'Department Staff' };
+
+    const handleLogout = () => {
+        localStorage.removeItem('staff');
+        navigate('/admin/login');
+    };
 
     return (
         <div className="space-y-4 pb-32 animate-in fade-in duration-700 bg-[#F8FAFC]">
@@ -37,6 +45,14 @@ export function StaffProfile() {
                 <Button className="w-full bg-white border border-slate-200 text-slate-700 rounded-2xl h-14 flex items-center justify-start gap-4 px-6 font-bold hover:bg-slate-50 transition-all shadow-sm focus:ring-4 focus:ring-slate-100">
                     <Key size={18} className="text-slate-400" />
                     <span>Change Access PIN</span>
+                </Button>
+                
+                <Button 
+                    variant="danger"
+                    onClick={handleLogout}
+                    className="w-full bg-red-50 text-red-600 border border-red-100 rounded-2xl h-14 flex items-center justify-center gap-2 font-bold hover:bg-red-100 transition-all shadow-sm mt-4"
+                >
+                    Log Out
                 </Button>
             </div>
         </div>

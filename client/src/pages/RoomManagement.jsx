@@ -3,7 +3,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { StatWidget } from '../components/ui/StatWidget';
-import { MoreVertical, User, Sparkles, AlertTriangle, Bed, CheckCircle2, Waves, UserPlus, X, Loader2, Hammer, FileText, Circle, Bell } from 'lucide-react';
+import { MoreVertical, User, Sparkles, AlertTriangle, Bed, CheckCircle2, Waves, UserPlus, X, Loader2, Hammer, FileText, Circle, Bell, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
 import { API_URL } from '../config/api';
@@ -22,6 +22,16 @@ export function RoomManagement() {
     const [maintenanceModal, setMaintenanceModal] = useState(null); // room data
     const [maintIssue, setMaintIssue] = useState('');
     const [maintPriority, setMaintPriority] = useState('Medium');
+    
+    // Add Room Modal State
+    const [addRoomModal, setAddRoomModal] = useState(false);
+    const [newRoom, setNewRoom] = useState({ roomNumber: '', type: 'Deluxe', floor: 1 });
+    const [adding, setAdding] = useState(false);
+    
+    // Delete Room Modal State
+    const [deleteRoomModal, setDeleteRoomModal] = useState(false);
+    const [selectedRoomId, setSelectedRoomId] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     const { socket } = useSocket();
 
@@ -34,10 +44,22 @@ export function RoomManagement() {
                     r.roomNumber === data.roomNumber ? { ...r, status: data.status } : r
                 ));
             });
+
+            socket.on('room_added', (newRoom) => {
+                setRooms(prev => [...prev, newRoom].sort((a, b) => a.roomNumber.localeCompare(b.roomNumber)));
+            });
+
+            socket.on('room_deleted', (data) => {
+                setRooms(prev => prev.filter(r => r._id !== data.roomId));
+            });
         }
 
         return () => {
-            if (socket) socket.off('room_status_changed');
+            if (socket) {
+                socket.off('room_status_changed');
+                socket.off('room_added');
+                socket.off('room_deleted');
+            }
         };
     }, [socket]);
 
@@ -113,26 +135,53 @@ export function RoomManagement() {
         }
     };
 
-    const handleMaintenance = async (e) => {
+    const handleAddRoom = async (e) => {
         e.preventDefault();
+        setAdding(true);
         try {
-            const response = await fetch(`${API_URL}/api/update-room-status`, {
+            const response = await fetch(`${API_URL}/api/rooms`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    roomNumber: maintenanceModal.roomNumber,
-                    status: 'Maintenance',
-                    issue: maintIssue,
-                    priority: maintPriority
-                })
+                body: JSON.stringify(newRoom)
             });
-            if (!response.ok) throw new Error('Maintenance update failed');
-            setMaintenanceModal(null);
-            setMaintIssue('');
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'Failed to add room');
+            }
+
+            setAddRoomModal(false);
+            setNewRoom({ roomNumber: '', type: 'Deluxe', floor: 1 });
             fetchRooms();
         } catch (err) {
             console.error(err);
-            alert('Error logging maintenance');
+            alert(err.message);
+        } finally {
+            setAdding(false);
+        }
+    };
+
+    const handleDeleteRoom = async (roomId, roomNumber) => {
+        if (!window.confirm(`Are you sure you want to PERMANENTLY remove Room ${roomNumber}? This cannot be undone.`)) return;
+        setDeleting(true);
+        try {
+            const response = await fetch(`${API_URL}/api/rooms/${roomId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'Failed to delete room');
+            }
+
+            setDeleteRoomModal(false);
+            setSelectedRoomId('');
+            fetchRooms();
+        } catch (err) {
+            console.error(err);
+            alert(err.message);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -153,6 +202,18 @@ export function RoomManagement() {
                     <p className="text-slate-500 font-medium mt-1">Real-time room availability and maintenance status.</p>
                 </div>
                 <div className="flex gap-4 overflow-x-auto pb-2 w-full md:w-auto">
+                    <button
+                        onClick={() => setAddRoomModal(true)}
+                        className="px-5 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all flex items-center gap-2 whitespace-nowrap"
+                    >
+                        <UserPlus size={14} /> Add Room
+                    </button>
+                    <button
+                        onClick={() => setDeleteRoomModal(true)}
+                        className="px-5 py-2.5 rounded-xl bg-red-50 text-red-500 text-xs font-black uppercase tracking-widest border border-red-100 hover:bg-red-500 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
+                    >
+                        <Trash2 size={14} /> Remove Room
+                    </button>
                     {['All', 'Ready', 'Occupied', 'Cleaning', 'Maintenance'].map(f => (
                         <button
                             key={f}
@@ -252,6 +313,15 @@ export function RoomManagement() {
                                                     title="Maintenance"
                                                 >
                                                     <Hammer size={18} />
+                                                </button>
+                                            )}
+                                            {room.status !== 'Occupied' && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id, room.roomNumber); }}
+                                                    className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                                    title="Remove Room"
+                                                >
+                                                    <Trash2 size={18} />
                                                 </button>
                                             )}
                                         </div>
@@ -498,6 +568,161 @@ export function RoomManagement() {
                                         <Button type="submit" className="w-full h-14 rounded-2xl font-black uppercase tracking-widest">
                                             Mark for Maintenance
                                         </Button>
+                                    </form>
+                                </div>
+                            </Card>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+            {/* Add Room Modal */}
+            <AnimatePresence>
+                {addRoomModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setAddRoomModal(false)}
+                            className="absolute inset-0 bg-primary/20 backdrop-blur-md"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative w-full max-w-lg"
+                        >
+                            <Card className="p-10 shadow-3xl shadow-primary/20 bg-white rounded-[2.5rem]">
+                                <div className="space-y-8">
+                                    <div>
+                                        <h2 className="text-3xl font-black text-primary">Add Room</h2>
+                                        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Expanding inventory</p>
+                                    </div>
+                                    <form onSubmit={handleAddRoom} className="space-y-6">
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Room Number</label>
+                                            <input
+                                                type="text"
+                                                value={newRoom.roomNumber}
+                                                onChange={(e) => setNewRoom({ ...newRoom, roomNumber: e.target.value })}
+                                                placeholder="e.g. 101"
+                                                className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold text-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Type</label>
+                                                <select
+                                                    value={newRoom.type}
+                                                    onChange={(e) => setNewRoom({ ...newRoom, type: e.target.value })}
+                                                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold text-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                                                >
+                                                    <option>Deluxe</option>
+                                                    <option>Suite</option>
+                                                    <option>Premium</option>
+                                                    <option>Economy</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Floor</label>
+                                                <input
+                                                    type="number"
+                                                    value={newRoom.floor}
+                                                    onChange={(e) => setNewRoom({ ...newRoom, floor: parseInt(e.target.value) })}
+                                                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold text-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={adding}
+                                            className="w-full bg-primary text-white rounded-2xl py-5 font-black uppercase tracking-widest shadow-xl shadow-primary/10 hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                        >
+                                            {adding ? <Loader2 className="animate-spin" /> : 'Create Room'}
+                                        </button>
+                                    </form>
+                                </div>
+                            </Card>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Delete Room Modal */}
+            <AnimatePresence>
+                {deleteRoomModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setDeleteRoomModal(false)}
+                            className="absolute inset-0 bg-primary/20 backdrop-blur-md"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative w-full max-w-lg"
+                        >
+                            <Card className="p-10 shadow-3xl shadow-primary/20 bg-white rounded-[2.5rem] border-red-50">
+                                <button
+                                    onClick={() => setDeleteRoomModal(false)}
+                                    className="absolute -top-3 -right-3 w-10 h-10 bg-white text-slate-400 rounded-2xl flex items-center justify-center shadow-xl hover:text-red-500 transition-colors border border-slate-50"
+                                >
+                                    <X size={20} />
+                                </button>
+                                <div className="space-y-8">
+                                    <div className="flex items-center gap-4 text-red-500">
+                                        <div className="p-3 bg-red-50 rounded-2xl">
+                                            <Trash2 size={24} />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-3xl font-black text-primary">Remove Room</h2>
+                                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Permanent Deletion</p>
+                                        </div>
+                                    </div>
+                                    <form onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const room = rooms.find(r => r._id === selectedRoomId);
+                                        if (room) handleDeleteRoom(room._id, room.roomNumber);
+                                    }} className="space-y-6">
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Room to Remove</label>
+                                            <select
+                                                value={selectedRoomId}
+                                                onChange={(e) => setSelectedRoomId(e.target.value)}
+                                                className="w-full bg-slate-50 border-none rounded-2xl py-5 px-6 font-bold text-primary focus:ring-4 focus:ring-red-100 transition-all"
+                                                required
+                                            >
+                                                <option value="">Choose a room...</option>
+                                                {rooms
+                                                    .filter(r => r.status !== 'Occupied')
+                                                    .map(r => (
+                                                        <option key={r._id} value={r._id}>
+                                                            Room {r.roomNumber} - {r.type} (Floor {r.floor})
+                                                        </option>
+                                                    ))}
+                                            </select>
+                                            <p className="text-[9px] text-slate-400 ml-1 font-medium italic">* Only unoccupied rooms can be removed.</p>
+                                        </div>
+
+                                        <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 flex gap-3">
+                                            <AlertTriangle className="text-orange-500 shrink-0" size={18} />
+                                            <p className="text-[10px] text-orange-700 font-bold leading-relaxed">
+                                                Warning: This action is permanent and will remove all room history and configuration from the system.
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            type="submit"
+                                            disabled={deleting || !selectedRoomId}
+                                            className="w-full bg-red-500 text-white rounded-2xl py-5 font-black uppercase tracking-widest shadow-xl shadow-red-100 hover:bg-red-600 hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                        >
+                                            {deleting ? <Loader2 className="animate-spin" /> : 'Confirm Deletion'}
+                                        </button>
                                     </form>
                                 </div>
                             </Card>

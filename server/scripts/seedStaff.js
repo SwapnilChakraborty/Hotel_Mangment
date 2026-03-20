@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 require('dotenv').config();
+
+// Override DNS for MongoDB Atlas resolution
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const StaffSchema = new mongoose.Schema({
     username: { type: String, unique: true, required: true },
@@ -20,15 +24,15 @@ const seedStaff = async () => {
         await Staff.deleteMany({});
 
         const admin = new Staff({
-            username: 'admin',
-            password: 'password123', // In production, use bcrypt
+            username: process.env.ADMIN_USERNAME || 'admin',
+            password: process.env.ADMIN_PASSWORD || 'password123',
             name: 'Alex Rivera',
             role: 'Admin'
         });
 
         const staff1 = new Staff({
-            username: 'staff1',
-            password: 'password123',
+            username: process.env.STAFF_USERNAME || 'staff1',
+            password: process.env.STAFF_PASSWORD || 'password123',
             name: 'John Doe',
             role: 'Staff'
         });

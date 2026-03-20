@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "cleanup": "node clearActivity.js",
+    "cleanup": "node scripts/clearActivity.js",
+    "seed": "node scripts/seedStaff.js",
+    "purge": "node scripts/purgeDB.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

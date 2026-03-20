@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     BarChart3,
     Users,
@@ -7,13 +7,41 @@ import {
     TrendingUp,
     ArrowUpRight,
     ArrowDownRight,
-    Download
+    Download,
+    Star
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { AreaChart } from '../components/admin/AreaChart';
+import { API_URL } from '../config/api';
 
 export function Analytics() {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch(`${API_URL}/api/analytics`)
+            .then(res => res.json())
+            .then(json => {
+                setData(json);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error('Error fetching analytics:', err);
+                setLoading(false);
+            });
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
+
+    if (!data) return null;
+
     return (
         <div className="space-y-10 animate-in fade-in duration-700">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -31,28 +59,28 @@ export function Analytics() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <MetricItem
                     label="Avg Response Time"
-                    value="4.2m"
+                    value={data.avgResponseTime}
                     trend="-12%"
                     positive={true}
                     icon={Clock}
                 />
                 <MetricItem
                     label="Staff Efficiency"
-                    value="88%"
+                    value={data.staffEfficiency}
                     trend="+5.2%"
                     positive={true}
                     icon={TrendingUp}
                 />
                 <MetricItem
                     label="Guest Satisfaction"
-                    value="4.92"
+                    value={data.guestSatisfaction}
                     trend="+0.12"
                     positive={true}
                     icon={ThumbsUp}
                 />
                 <MetricItem
                     label="Total Requests"
-                    value="1,420"
+                    value={data.totalRequests.toLocaleString()}
                     trend="+18%"
                     positive={true}
                     icon={Users}
@@ -77,12 +105,20 @@ export function Analytics() {
                 </Card>
 
                 <Card className="p-10">
-                    <h2 className="text-2xl font-extrabold text-primary mb-8 leading-tight">Most Requested Services</h2>
+                    <h2 className="text-2xl font-extrabold text-primary mb-8 leading-tight">Service Distribution</h2>
                     <div className="space-y-8">
-                        <ServiceStat label="Room Cleaning" value="442" percentage={85} color="bg-accent" />
-                        <ServiceStat label="Towel Request" value="312" percentage={65} color="bg-blue-400" />
-                        <ServiceStat label="Laundry Express" value="215" percentage={45} color="bg-primary" />
-                        <ServiceStat label="Late Checkout" value="128" percentage={25} color="bg-orange-400" />
+                        {data.serviceDistribution.map((service, idx) => {
+                            const colors = ['bg-accent', 'bg-blue-400', 'bg-primary', 'bg-orange-400'];
+                            return (
+                                <ServiceStat 
+                                    key={idx}
+                                    label={service.label} 
+                                    value={service.value} 
+                                    percentage={service.percentage} 
+                                    color={colors[idx % colors.length]} 
+                                />
+                            );
+                        })}
                     </div>
                 </Card>
             </div>
@@ -101,10 +137,16 @@ export function Analytics() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            <StaffRow name="Marco Rossi" role="Head Chef" tasks="142" time="12m" rating="5.0" />
-                            <StaffRow name="Elena Gilbert" role="Housekeeping" tasks="285" time="18m" rating="4.9" />
-                            <StaffRow name="John Smith" role="Concierge" tasks="98" time="4m" rating="4.8" />
-                            <StaffRow name="Sarah Connor" role="Maintenance" tasks="42" time="45m" rating="4.7" />
+                            {data.staffPerformance.map((staff, idx) => (
+                                <StaffRow 
+                                    key={idx}
+                                    name={staff.name} 
+                                    role={staff.role} 
+                                    tasks={staff.tasks} 
+                                    time={staff.time} 
+                                    rating={staff.rating} 
+                                />
+                            ))}
                         </tbody>
                     </table>
                 </div>

@@ -32,6 +32,8 @@ export function StaffTasks() {
     const [filter, setFilter] = useState('Active');
     const [now, setNow] = useState(new Date());
     const playSound = useNotificationSound();
+    const staff = JSON.parse(localStorage.getItem('staff')) || {};
+    const staffId = staff.id;
 
     // Fetch initial tasks
     useEffect(() => {
@@ -92,7 +94,12 @@ export function StaffTasks() {
     const updateStatus = (id, newStatus) => {
         const task = tasks.find(t => t.id === id);
         if (socket && task) {
-            socket.emit('update_status', { requestId: id, status: newStatus, roomNumber: task.room });
+            socket.emit('update_status', { 
+                requestId: id, 
+                status: newStatus, 
+                roomNumber: task.room,
+                staffId: staffId 
+            });
         }
     };
 
@@ -135,6 +142,7 @@ export function StaffTasks() {
                     Auto-refreshing
                 </div>
             </div>
+
 
             {/* Orders List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">

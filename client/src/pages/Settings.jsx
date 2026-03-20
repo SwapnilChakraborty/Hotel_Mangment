@@ -17,10 +17,11 @@ export function Settings() {
         hotelName: 'RoomFlow Premium',
         hotelId: 'RF-2026-01',
         crmEnabled: true,
-        currency: 'USD',
+        currency: 'INR',
         taxRate: 12,
         emailNotifications: true,
-        autoCheckout: false
+        autoCheckout: false,
+        googleReviewUrl: ''
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -136,6 +137,16 @@ export function Settings() {
                                     type="number"
                                     value={settings.taxRate}
                                     onChange={e => setSettings({ ...settings, taxRate: parseInt(e.target.value) })}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 focus:ring-4 focus:ring-primary/5 focus:bg-white outline-none transition-all font-semibold"
+                                />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Google Review URL</label>
+                                <input
+                                    type="url"
+                                    value={settings.googleReviewUrl}
+                                    onChange={e => setSettings({ ...settings, googleReviewUrl: e.target.value })}
+                                    placeholder="https://g.page/r/your-id/review"
                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 focus:ring-4 focus:ring-primary/5 focus:bg-white outline-none transition-all font-semibold"
                                 />
                             </div>

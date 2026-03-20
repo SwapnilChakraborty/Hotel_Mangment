@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Wifi, Utensils, MessageSquare, Briefcase, Car, Sparkles, MoreHorizontal, Sun, Calendar, Clock, MapPin, Activity, CheckCircle2, Clock as ClockIcon, TrendingUp, HandPlatter, SprayCan, PhoneCall, ArrowRight as ArrowRightIcon } from 'lucide-react';
+import { Key, Wifi, Utensils, MessageSquare, Briefcase, Car, Sparkles, MoreHorizontal, Sun, Calendar, Clock, MapPin, Activity, CheckCircle2, Clock as ClockIcon, TrendingUp, HandPlatter, SprayCan, PhoneCall, ArrowRight as ArrowRightIcon, Globe } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_URL } from '../config/api';
+import { RatingModal } from '../components/RatingModal';
+import { Star } from 'lucide-react';
 
 export function GuestHome() {
     const getCustomerSafe = () => {
@@ -23,15 +26,18 @@ export function GuestHome() {
     const [activities, setActivities] = useState([]);
     const [hotelName, setHotelName] = useState('Vishnu Suites');
     const [requesting, setRequesting] = useState(false);
+    const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+    const [hasRated, setHasRated] = useState(false);
+    const [googleReviewUrl, setGoogleReviewUrl] = useState('');
 
     useEffect(() => {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-        
+
         // Fetch Hotel Info
         fetch(`${API_URL}/api/settings`)
             .then(res => res.json())
             .then(data => {
                 if (data.hotelName) setHotelName(data.hotelName);
+                if (data.googleReviewUrl) setGoogleReviewUrl(data.googleReviewUrl);
             })
             .catch(err => console.error('Error fetching settings:', err));
 
@@ -65,8 +71,8 @@ export function GuestHome() {
 
                         const newActivity = {
                             id: data.id,
-                            text: data.type === 'order' 
-                                ? `Order #${data.id.toString().slice(-5).toUpperCase()}` 
+                            text: data.type === 'order'
+                                ? `Order #${data.id.toString().slice(-5).toUpperCase()}`
                                 : data.type === 'service'
                                     ? `${data.serviceType ? data.serviceType.charAt(0).toUpperCase() + data.serviceType.slice(1) : 'Service'} Request`
                                     : data.details || 'New Activity',
@@ -93,7 +99,6 @@ export function GuestHome() {
         if (requesting) return;
         setRequesting(true);
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
             const res = await fetch(`${API_URL}/api/service-requests`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -112,6 +117,22 @@ export function GuestHome() {
             console.error('Failed to request housekeeping:', err);
         } finally {
             setRequesting(false);
+        }
+    };
+
+    const handleRatingSubmit = async (ratingData) => {
+        try {
+            const res = await fetch(`${API_URL}/api/reviews`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ratingData)
+            });
+            if (res.ok) {
+                setHasRated(true);
+                // Optionally show a toast or message
+            }
+        } catch (err) {
+            console.error('Failed to submit rating:', err);
         }
     };
 
@@ -176,7 +197,7 @@ export function GuestHome() {
                     <p className="text-[#ab9373] text-[10px] uppercase tracking-[0.3em] mt-2">Instant Service Requests</p>
                 </div>
                 <div className="grid grid-cols-1 gap-4">
-                    <button 
+                    <button
                         onClick={() => navigate('/guest/services')}
                         className="flex items-center justify-between p-6 bg-white border border-[#ab9373]/20 shadow-sm group hover:border-[#ab9373] transition-all"
                     >
@@ -192,7 +213,7 @@ export function GuestHome() {
                         <ArrowRightIcon size={20} className="text-[#ab9373] group-hover:translate-x-1 transition-transform" />
                     </button>
 
-                    <button 
+                    <button
                         onClick={handleHousekeeping}
                         disabled={requesting}
                         className="flex items-center justify-between p-6 bg-white border border-[#ab9373]/20 shadow-sm group hover:border-[#ab9373] transition-all disabled:opacity-50"
@@ -209,7 +230,7 @@ export function GuestHome() {
                         <ArrowRightIcon size={20} className="text-[#ab9373] group-hover:translate-x-1 transition-transform" />
                     </button>
 
-                    <button 
+                    <button
                         onClick={() => navigate('/guest/chat')}
                         className="flex items-center justify-between p-6 bg-white border border-[#ab9373]/20 shadow-sm group hover:border-[#ab9373] transition-all"
                     >
@@ -225,6 +246,53 @@ export function GuestHome() {
                         <ArrowRightIcon size={20} className="text-[#ab9373] group-hover:translate-x-1 transition-transform" />
                     </button>
                 </div>
+            </motion.div>
+
+            {/* Rate Us Section */}
+            <motion.div variants={itemVariants} initial="hidden" animate="visible" className="px-6 space-y-4">
+                {!hasRated && (
+                    <button
+                        onClick={() => setIsRatingModalOpen(true)}
+                        className="w-full flex items-center justify-between p-8 bg-[#5a4634] text-white shadow-xl group hover:bg-[#4a3b2c] transition-all relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <Star size={80} fill="white" />
+                        </div>
+                        <div className="relative z-10 flex items-center gap-6">
+                            <div className="p-4 bg-white/10 backdrop-blur-md border border-white/20">
+                                <Star size={28} fill="white" />
+                            </div>
+                            <div className="text-left">
+                                <h4 className="text-2xl font-serif">Enjoying your stay?</h4>
+                                <p className="text-[10px] text-white/60 uppercase tracking-[0.2em] mt-2">Rate your experience with us</p>
+                            </div>
+                        </div>
+                        <ArrowRightIcon size={24} className="relative z-10 group-hover:translate-x-2 transition-transform" />
+                    </button>
+                )}
+
+                {googleReviewUrl && (
+                    <a
+                        href={googleReviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center justify-between p-8 bg-white border border-[#ab9373]/30 text-[#4a3b2c] shadow-lg group hover:border-[#ab9373] transition-all relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                            <Globe size={80} />
+                        </div>
+                        <div className="relative z-10 flex items-center gap-6">
+                            <div className="p-4 bg-blue-50 border border-blue-100 text-blue-600">
+                                <Globe size={28} />
+                            </div>
+                            <div className="text-left">
+                                <h4 className="text-2xl font-serif">Review on Google</h4>
+                                <p className="text-[10px] text-[#ab9373] uppercase tracking-[0.2em] mt-2">Share your experience with the world</p>
+                            </div>
+                        </div>
+                        <ArrowRightIcon size={24} className="relative z-10 text-[#ab9373] group-hover:translate-x-2 transition-transform" />
+                    </a>
+                )}
             </motion.div>
 
             {/* Premium Status Row */}
@@ -312,6 +380,14 @@ export function GuestHome() {
                     </div>
                 </div>
             </motion.div>
+
+            <RatingModal
+                isOpen={isRatingModalOpen}
+                onClose={() => setIsRatingModalOpen(false)}
+                onSubmit={handleRatingSubmit}
+                guestName={guestName}
+                roomNumber={roomNumber}
+            />
         </div>
     );
 }

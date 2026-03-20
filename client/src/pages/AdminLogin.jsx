@@ -58,8 +58,12 @@ export function AdminLogin() {
             // Store staff data
             localStorage.setItem('staff', JSON.stringify(data));
 
-            // Redirect to admin dashboard
-            navigate('/admin');
+            // Redirect based on role
+            if (data.role === 'Admin') {
+                navigate('/admin');
+            } else {
+                navigate('/staff');
+            }
         } catch (err) {
             setError(err.message);
         } finally {
@@ -188,6 +192,8 @@ export function AdminLogin() {
                             )}
                         </button>
                     </form>
+
+
                 </Card>
 
                 <div className="mt-10 text-center">

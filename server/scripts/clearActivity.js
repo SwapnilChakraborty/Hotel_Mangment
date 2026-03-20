@@ -1,6 +1,10 @@
 const { MongoClient } = require('mongodb');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const dns = require('dns');
+require('dotenv').config();
+
+// Override DNS for MongoDB Atlas resolution
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const MONGODB_URI = process.env.MONGODB_URI;
 

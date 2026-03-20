@@ -3,6 +3,7 @@ import { Send, Smile, Paperclip, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
+import { API_URL } from '../config/api';
 
 export function GuestChat() {
     const [messages, setMessages] = useState([]);
@@ -29,7 +30,6 @@ export function GuestChat() {
     };
 
     useEffect(() => {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
         
         // Fetch History
         fetch(`${API_URL}/api/chat/${roomNumber}`)

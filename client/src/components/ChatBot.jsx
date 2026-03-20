@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
+import { API_URL } from '../config/api';
 
 export function ChatBot() {
     const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +29,6 @@ export function ChatBot() {
 
     useEffect(() => {
         if (isOpen && socket) {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
             fetch(`${API_URL}/api/chat/${roomNumber}`)
                 .then(res => res.json())
                 .then(data => setMessages(Array.isArray(data) ? data : []))

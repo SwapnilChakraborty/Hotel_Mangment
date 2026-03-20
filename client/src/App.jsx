@@ -23,11 +23,19 @@ import { CRM } from './pages/CRM';
 import { Performance } from './pages/Performance';
 import { StaffProfile } from './pages/StaffProfile';
 import { AdminChat } from './pages/AdminChat';
-
+import StaffManagement from './pages/StaffManagement';
 
 const AdminRoute = ({ children }) => {
   const staff = JSON.parse(localStorage.getItem('staff'));
   if (!staff || staff.role !== 'Admin') {
+    return <Navigate to="/admin/login" />;
+  }
+  return children;
+};
+
+const StaffRoute = ({ children }) => {
+  const staff = JSON.parse(localStorage.getItem('staff'));
+  if (!staff) {
     return <Navigate to="/admin/login" />;
   }
   return children;
@@ -53,7 +61,7 @@ function App() {
         </Route>
 
         {/* Staff Routes */}
-        <Route path="/staff" element={<StaffLayout />}>
+        <Route path="/staff" element={<StaffRoute><StaffLayout /></StaffRoute>}>
           <Route index element={<StaffTasks />} />
           <Route path="performance" element={<Performance />} />
           <Route path="profile" element={<StaffProfile />} />
@@ -65,7 +73,7 @@ function App() {
           <Route path="rooms" element={<RoomManagement />} />
           <Route path="maintenance" element={<Maintenance />} />
           <Route path="requests" element={<div className="p-12 text-center text-slate-400 font-bold text-2xl animate-pulse">Live Service Feed</div>} />
-          <Route path="staff" element={<div className="p-12 text-center text-slate-400 font-bold text-2xl animate-pulse">Team Management</div>} />
+          <Route path="staff" element={<StaffManagement />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="crm" element={<CRM />} />
           <Route path="messages" element={<AdminChat />} />
