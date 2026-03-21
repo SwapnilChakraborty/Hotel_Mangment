@@ -21,6 +21,29 @@ const allowedOrigins = [
 
 const app = express();
 
+// Enable CORS at the very top of the middleware stack
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+        
+        const isAllowed = allowedOrigins.indexOf(origin) !== -1 || 
+                         origin.includes('vercel.app') || 
+                         origin.includes('onrender.com');
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            console.warn(`CORS blocked for origin: ${origin}`);
+            callback(null, false);
+        }
+    },
+    methods: ["GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"],
+    credentials: true,
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+}));
+
+
 // Rate Limiting
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -54,19 +77,6 @@ const io = new Server(server, {
     }
 });
 
-// Middleware
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.includes('vercel.app') || origin.includes('onrender.com')) {
-            callback(null, true);
-        } else {
-            console.warn(`CORS blocked for origin: ${origin}`);
-            callback(null, false); // Block but don't throw an error that causes 500
-        }
-    },
-    methods: ["GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"],
-    credentials: true
-}));
 app.use(express.json());
 
 // MongoDB Connection
