@@ -470,7 +470,7 @@ app.post('/api/checkout', authenticateToken, async (req, res) => {
             roomNumber: roomNumber,
             type: 'housekeeping',
             details: 'Housekeeping Required',
-            priority: 'High',
+            priority: 'high',
             status: 'Pending',
             createdAt: new Date()
         });
@@ -508,7 +508,7 @@ app.post('/api/checkout', authenticateToken, async (req, res) => {
 
 // Update Room Status Route
 app.post('/api/update-room-status', authenticateToken, async (req, res) => {
-    const { roomNumber, status } = req.body;
+    const { roomNumber, status, details, priority } = req.body;
     try {
         const room = await Room.findOne({ roomNumber });
         if (!room) return res.status(404).json({ error: 'Room not found' });
@@ -517,27 +517,28 @@ app.post('/api/update-room-status', authenticateToken, async (req, res) => {
         await room.save();
 
         io.emit('room_status_changed', { roomNumber, status });
-        if (status === 'Cleaning') {
-            const housekeepingReq = new ServiceRequest({
+        
+        if (status === 'Cleaning' || status === 'Maintenance') {
+            const serviceReq = new ServiceRequest({
                 roomNumber: roomNumber,
-                type: 'housekeeping',
-                details: 'Housekeeping Required',
-                priority: 'High',
+                type: status === 'Cleaning' ? 'housekeeping' : 'maintenance',
+                details: details || (status === 'Cleaning' ? 'Housekeeping Required' : 'Maintenance Required'),
+                priority: (priority || 'high').toLowerCase(),
                 status: 'Pending',
                 createdAt: new Date()
             });
 
-            await housekeepingReq.save();
+            await serviceReq.save();
 
             io.emit('admin_activity', {
-                id: housekeepingReq._id.toString(),
+                id: serviceReq._id.toString(),
                 room: roomNumber,
                 type: 'service',
-                details: housekeepingReq.details,
-                priority: housekeepingReq.priority,
-                status: housekeepingReq.status,
-                time: housekeepingReq.createdAt,
-                serviceType: housekeepingReq.type
+                details: serviceReq.details,
+                priority: serviceReq.priority,
+                status: serviceReq.status,
+                time: serviceReq.createdAt,
+                serviceType: serviceReq.type
             });
 
             // Live Notification for Admin & Staff
@@ -545,7 +546,7 @@ app.post('/api/update-room-status', authenticateToken, async (req, res) => {
                 id: Date.now(),
                 role: 'admin',
                 title: 'New Service Request',
-                message: `Room ${roomNumber}: Housekeeping Required (Auto)`,
+                message: `Room ${roomNumber}: ${serviceReq.details}`,
                 type: 'service',
                 time: new Date()
             });

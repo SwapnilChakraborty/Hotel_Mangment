@@ -183,6 +183,28 @@ export function RoomManagement() {
         }
     };
 
+    const handleMaintenance = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await secureFetch(`${API_URL}/api/update-room-status`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    roomNumber: maintenanceModal.roomNumber,
+                    status: 'Maintenance',
+                    details: maintIssue,
+                    priority: maintPriority.toLowerCase()
+                })
+            });
+            if (!response.ok) throw new Error('Maintenance log failed');
+            setMaintenanceModal(null);
+            setMaintIssue('');
+            fetchRooms();
+        } catch (err) {
+            console.error(err);
+            alert('Error logging maintenance');
+        }
+    };
+
     const stats = [
         { label: 'Available', count: rooms.filter(r => r.status === 'Ready').length, icon: CheckCircle2, positive: true, trend: 'Ready for check-in' },
         { label: 'Occupied', count: rooms.filter(r => r.status === 'Occupied').length, icon: Bed, positive: true, trend: '82% total occupancy' },
